@@ -3,6 +3,8 @@
 
 
 const PRIEST = 6, BLAST = 11, DIVINE_CHARGE = 28;
+const REQUEST_VARIANTS = new Set([0,10,20]);
+const canonical = id => id-id%100;
 const PREDECESSORS = {16: new Set([11,27]), 27: new Set([11,40,16])};
 const base = id => Math.floor((id || 0) / 10000);
 const copy = value => value?.clone ? value.clone() : value && typeof value === 'object' ? {...value} : value;
@@ -19,11 +21,13 @@ module.exports = function PriestEntrySkill(mod, mods) {
   const enabled = id => !destroyed && entry.enabled !== false && mods.player.job === PRIEST &&
     mods.player.alive !== false && mods.utils.isEnabled(id) && mods.utils.canCastSkill() && !mods.action.inSpecialAction;
   const normalId = id => {
-    const data=mods.skills._getInfo(id);
-    return data?.abnormalityRedirect?.some(x=>mods.effects.getAbnormality(x.id)) ? id : data?.baseRedirect || id;
+    const data=mods.skills._getInfo(canonical(id));
+    const enhanced=data?.abnormalityRedirect?.find(x=>x.id===805800);
+    return enhanced && mods.effects.getAbnormality(805800) ? enhanced.skill : data?.baseRedirect || id;
   };
   const resolve = id => mods.skills.getNewSkillData(normalId(id),{byGrant:false});
-  const castable = (id,data=resolve(id)) => !data.failed && mods.skills.canCast(data,{byGrant:false,originalSkillId:id})>=-2;
+  const castable = (id,data=resolve(id)) => !data.failed && !mods.cooldown.isOnCooldownBase(base(id)) &&
+    mods.skills.canCast(data,{byGrant:false,originalSkillId:id})>=-2;
   const budget = () => Math.min(3000,Math.max(1000,4*((mods.ping.ping||0)+(mods.ping.jitter||0))+500));
   const ownsEntry = cast => mods.action.inAction && mods.action.stage?.id===cast.localId && base(mods.action.stage?.skill?.id)===BLAST;
   const cancel = () => {
@@ -37,19 +41,25 @@ module.exports = function PriestEntrySkill(mod, mods) {
   };
   const activeNativeChain = target => {
     const stage=mods.action.stage;
-    if(!mods.action.inAction || !PREDECESSORS[base(target)]?.has(base(stage?.skill?.id)))return false;
+    if(!PREDECESSORS[base(target)]?.has(base(stage?.skill?.id)))return false;
     const length=mods.skills.getAnimationlengthForAllStages(stage.skill.id,mods.action.speed);
     const elapsed=Date.now()-stage._time;
     const data=mods.skills._getInfo(stage.skill.id);
     const end=data?.cancels?.pendingEndTime;
     const limit=end>=0 ? Math.min(length,end/mods.action.speed.real) : length;
 
-    return Number.isFinite(limit) && limit>0 && elapsed>=0 && elapsed<limit;
+    if(mods.action.inAction && Number.isFinite(limit) && limit>0 && elapsed>=0 && elapsed<limit)return true;
+    const buff=base(target)===27 && mods.effects.getAbnormality(806104);
+    if(!buff || !Number.isFinite(buff.duration) || buff.duration<=0 || buff.time<stage._time ||
+      Date.now()<buff.time || Date.now()>=buff.time+buff.duration)return false;
+    const result=resolve(target);
+    return !result.failed && base(result.skillId)===27 && [11,21].includes(result.skillId%100);
   };
   const blastId = () => {
     const learned=mods.last.skillList?.skills;
     const ids=Object.keys(learned || mods.skills.info.skillData).map(Number);
-    return ids.filter(id=>base(id)===BLAST && id%100===0 && mods.skills._getInfo(id))
+    return ids.filter(id=>base(id)===BLAST && [0,1,2].includes(id%100) && mods.skills._getInfo(id))
+      .map(canonical).filter(id=>mods.skills._getInfo(id))
       .reduce((best,id)=>Math.max(best,id),0);
   };
   const hasMana = (first,second) => {
@@ -81,8 +91,9 @@ module.exports = function PriestEntrySkill(mod, mods) {
     send(cast,normalId(cast.entryId));
   };
   mod.hook(...mods.packet.get_all('C_START_SKILL'),{order:-15,filter:{fake:false}},event=>{
-    const id=event.skill.id;
-    if(!enabled(id) || !PREDECESSORS[base(id)] || id%100!==0 || event.continue || !Number.isFinite(event.w)){cancel();return;}
+    const requested=event.skill.id,id=canonical(requested);
+    if(!enabled(requested) || !PREDECESSORS[base(requested)] || !REQUEST_VARIANTS.has(requested%100) ||
+      event.continue || !Number.isFinite(event.w)){cancel();return;}
     if(pending?.mainId===id){pending.event=clone(event);return false;}
     cancel();
     if(activeNativeChain(id) || mods.action.inAction && base(mods.action.stage?.skill?.id)===base(id))return;

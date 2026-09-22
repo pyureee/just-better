@@ -3457,6 +3457,7 @@ module.exports = function (mod, mods) {
           mods.lancerAutoBlock?.isStaleBlockRequest?.(event4)) return;
       const flattenAttempt = flattenChain.get(event4);
       if (lifetime.closed || !flattenChain.valid(flattenAttempt)) return;
+      if (deferredPacket && priestRequests.has(deferredPacket[2]) && !priestRequests.get(deferredPacket[2])()) {deferredPacket = null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       deferredPacket && (sendingRetry = true, mod.send(...deferredPacket), sendingRetry = false, deferredPacket = null);
       const byGrant2 = event4["continue"],
         press2 = event4.press,
@@ -3538,6 +3539,7 @@ module.exports = function (mod, mods) {
       }
       if ((charge2 || skillTypeMatches) && !byGrant2) {
         mod.setTimeout(() => {
+          if(lifetime.closed || priestRequests.has(event4) && !priestRequests.get(event4)())return;
           if (unkn32) incrementNextSkillId = true;
           grantSkillDeadline = Date.now() + mods.utils.getPacketBuffer();
           mod.send(...mods.packet.get_all("S_GRANT_SKILL"), {
@@ -3597,8 +3599,9 @@ module.exports = function (mod, mods) {
     },
     handleStartSkill = (packetName3, event5, fake5) => {
       if (sendingRetry) return;
-      const priestCheck = mods.priestEntrySkill?.captureRequest(packetName3, event5, fake5);
-      if (priestCheck) priestRequests.set(event5, priestCheck);
+      const requestCheck = mods.priestEntrySkill?.captureRequest(packetName3, event5, fake5);
+      if (requestCheck) priestRequests.set(event5, requestCheck);
+      if (deferredPacket && priestRequests.has(deferredPacket[2]) && !priestRequests.get(deferredPacket[2])()) {deferredPacket=null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       if (fake5) {
         mods.lancerEntrySkill?.captureBlockRequest?.(event5);
         mods.lancerAutoBlock?.captureBlockRequest?.(event5);
