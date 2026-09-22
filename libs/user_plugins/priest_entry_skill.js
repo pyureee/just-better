@@ -15,6 +15,7 @@ module.exports = function PriestEntrySkill(mod, mods) {
   const entry = settings.priest_entry_precast ||= {enabled:true};
   if (entry.enabled === undefined) entry.enabled = true;
   if (settings.priest_divine_charge === undefined) settings.priest_divine_charge = true;
+  if (settings.priest_sleep_emulation === undefined) settings.priest_sleep_emulation = true;
   let pending = null, timer = null, emitting = null, destroyed = false, finishDc = false;
   const enabled = id => !destroyed && entry.enabled !== false && mods.player.job === PRIEST &&
     mods.player.alive !== false && mods.utils.isEnabled(id) && mods.utils.canCastSkill() && !mods.action.inSpecialAction;
@@ -175,8 +176,12 @@ module.exports = function PriestEntrySkill(mod, mods) {
       mods.action.inAction && base(mods.action.stage?.skill?.id)===DIVINE_CHARGE;
     mods.command.message('Priest Divine Charge emulation: '+(settings.priest_divine_charge?'ON':'OFF')+(finishDc?' (after the current cast)':''));
   });
+  mods.command.add('priest s',()=>{
+    settings.priest_sleep_emulation=!settings.priest_sleep_emulation;
+    mods.command.message("Priest Ishara's Lullaby emulation: "+(settings.priest_sleep_emulation?'ON':'OFF'));
+  });
   const toggleEntry=()=>{entry.enabled=!entry.enabled;if(!entry.enabled)cancel();mods.command.message('Priest re-entry: '+(entry.enabled?'ON':'OFF'));};
   mods.command.add('priest entry',toggleEntry);
   mods.command.add('priestentry',toggleEntry);
-  this.destructor=()=>{destroyed=true;cancel();mods.action.off('reaction',cancel);mods.command.remove('dc');mods.command.remove('priestentry');mods.command.remove('priest entry');if(mods.priestEntrySkill===api)delete mods.priestEntrySkill;};
+  this.destructor=()=>{destroyed=true;cancel();mods.action.off('reaction',cancel);mods.command.remove('dc');mods.command.remove('priest s');mods.command.remove('priestentry');mods.command.remove('priest entry');if(mods.priestEntrySkill===api)delete mods.priestEntrySkill;};
 };

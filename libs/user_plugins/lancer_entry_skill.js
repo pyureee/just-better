@@ -1,16 +1,14 @@
 'use strict';
 
-
-
-
 const PRIORITIES = {
   13: [181101, 181100, 210402, 210401, 100300],
-  3: [50101, 50102, 181101, 181100, 11200]
+  3: [50101, 50102, 181101, 181100, 11200],
+  25: [181101, 181100, 210402, 210401, 100300]
 };
 const REAR_CANCEL = {181101: 200, 181100: 190, 210402: 400, 210401: 400,
   100300: 500, 50101: 454, 50102: 454, 11200: 0};
-const MAIN = {13: 131100, 3: 30200};
-const HOTKEY_SKILLS = {spring: 131100, onslaught: 30200};
+const MAIN = {13: 131100, 3: 30200, 25: 251000};
+const HOTKEY_SKILLS = {spring: 131100, onslaught: 30200, wallop: 251000};
 const CANCEL_LOCK_MS = {13: 900, 3: 2545};
 const base = id => Math.floor(id / 10000);
 
@@ -20,6 +18,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   const copy = value => value?.clone ? value.clone() : value && typeof value === 'object' ? {...value} : value;
   const cloneEvent = e => ({...e, skill: copy(e.skill), loc: copy(e.loc), dest: copy(e.dest)});
   let pending = null, timer = null, destroyed = false;
+  let divine = null, divineTimer = null, suppressDivineUntil = 0;
   let monitor = null;
 
   let clientHeading = null, skillHeading = null;
@@ -39,6 +38,70 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     const cast=pending;
     mod.clearTimeout(timer); timer=null; pending=null;
     if (cast) releaseBlock(cast);
+  };
+  const clearDivine = () => {
+    const cast=divine;
+    mod.clearTimeout(divineTimer); divineTimer=null; divine=null;
+    if (cast?.blockSent && !cast.blockReleased) {
+      cast.blockReleased=true;
+      mod.send(...mods.packet.get_all('C_PRESS_SKILL'), {...cast.blockPacket,press:false});
+    }
+  };
+  const finishDivine = cast => {
+    if (divine!==cast) return;
+    if (mods.player.job!==1 || mods.player.alive===false || remaining(300100)>0 ||
+        !mods.utils.isEnabled(300100) || !mods.utils.canCastSkill() ||
+        mods.action.inSpecialAction ||
+        mods.action.inAction && ![0,2].includes(currentBase())) return clearDivine();
+    suppressDivineUntil=Date.now()+1500;
+    clearDivine();
+    mod.send(...mods.packet.get_all('C_START_SKILL'), {
+      skill:{id:300100,type:1},continue:false,
+      loc:copy(mods.position.loc || cast.loc),dest:{x:0,y:0,z:0},
+      w:Number.isFinite(skillHeading)?skillHeading:cast.w,
+      moving:false,target:0n,unk:true,unk2:false,
+      destPosOnAir:true,isPerfectCombo:false
+    });
+  };
+  const tryDivineBlock = cast => {
+    divineTimer=null;
+    if (divine!==cast || !mods.action.inAction || localId()!==cast.sourceAction ||
+        Date.now()>cast.deadline || remaining(300100)>0) return clearDivine();
+    const action=mods.action.stage, data=mods.skills._getInfo(action.skill.id);
+    const rear=data?.cancels?.rearStartTime, speed=mods.action.speed?.real;
+    if (!(rear>=0) || !(speed>0)) return clearDivine();
+    const server=mods.action.serverStage;
+    let ready=action._time+rear/speed;
+    if (mods.action.serverInAction && server?.skill?.id===action.skill.id &&
+        server._time>=action._time && server.speed>0)
+      ready=Math.max(ready,server._time+rear/server.speed-(mods.ping.ping||0));
+    else ready+=Math.max(25,mods.ping.jitter||0);
+    ready+=10;
+    if (Date.now()<ready || !allowed(20200)) {
+      divineTimer=mod.setTimeout(()=>tryDivineBlock(cast),Math.max(1,Math.min(20,Math.ceil(ready-Date.now())||10)));
+      return;
+    }
+    cast.phase='block';
+    cast.blockSent=true;
+    divineTimer=mod.setTimeout(()=>clearDivine(),Math.max(400,2*(mods.ping.ping||0)+100));
+    blockRequests.set(cast.blockPacket,cast);
+    issuingBlock=cast;
+    try {mod.send(...mods.packet.get_all('C_PRESS_SKILL'),cast.blockPacket);}
+    finally {issuingBlock=null;}
+  };
+  const startDivine = () => {
+    if (divine || destroyed || settings.enabled===false || mods.player.job!==1 || mods.player.alive===false ||
+        !mods.action.inAction || ![3,13].includes(currentBase()) ||
+        remaining(300100)>0 || !mods.utils.isEnabled(300100) ||
+        !mods.utils.canCastSkill() || mods.action.inSpecialAction ||
+        !mods.position.loc || !mods.utils.isEnabled(20200)) return;
+    cancel();
+    const cast={sourceAction:localId(),loc:copy(mods.position.loc),w:Number.isFinite(skillHeading)?skillHeading:mods.position.w,
+      phase:'waiting',deadline:Date.now()+1500,
+      blockReleased:false,blockPacket:{skill:{id:20200,type:1},press:true,
+        loc:copy(mods.position.loc),w:mods.position.w}};
+    divine=cast;
+    tryDivineBlock(cast);
   };
   const later = (fn, ms) => {
     mod.clearTimeout(timer);
@@ -83,8 +146,8 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   };
   const packet = (cast,id) => ({...cloneEvent(cast.event),skill:{...cast.event.skill,id},
     loc:copy(mods.position.loc || cast.event.loc),
-    w:cast.fromHotkey && Number.isFinite(cast.mainBase === 13 ? skillHeading : clientHeading) ?
-      (cast.mainBase === 13 ? skillHeading : clientHeading) : cast.event.w,
+    w:cast.fromHotkey && Number.isFinite([13,25].includes(cast.mainBase) ? skillHeading : clientHeading) ?
+      ([13,25].includes(cast.mainBase) ? skillHeading : clientHeading) : cast.event.w,
     continue:false});
   const send = (cast,id) => mod.send(...mods.packet.get_all('C_START_SKILL'),packet(cast,id));
   const localId = () => mods.action.stage?.id;
@@ -94,7 +157,9 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     if (!mods.action.inAction) return 0;
     const lock = CANCEL_LOCK_MS[currentBase()];
     const speed = mods.action.speed?.real;
-    return lock && speed > 0 ? Math.max(0,mods.action.stage._time+lock/speed-Date.now()) : 0;
+    const configured = lock && speed > 0 ? mods.action.stage._time+lock/speed-Date.now() : 0;
+    const lastHit = (mods.lancerDamageTickLock?.readyAtFor?.(mods.action.stage) || 0)-Date.now();
+    return Math.max(0,configured,lastHit);
   };
   const finishEntry = cast => {
     if (pending !== cast) return;
@@ -168,6 +233,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   const input = (event, fromHotkey = false) => {
     if (!fromHotkey) {rememberHeading(event);if (Number.isFinite(event.w)) skillHeading=event.w;}
     const id = event.skill.id, mainBase = base(id);
+    if (divine && id!==300100) clearDivine();
     if (!MAIN[mainBase] || id !== MAIN[mainBase] || event.continue || !enabled(id) || !Number.isFinite(event.w)) {
       cancel(); return;
     }
@@ -192,6 +258,9 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     return false;
   };
   const realInput={order:-15,filter:{fake:false,silenced:false}};
+  mod.hook(...mods.packet.get_all('C_START_SKILL'),{order:-16,filter:{fake:false}},event=>{
+    if (event.skill.id===300100 && (divine || Date.now()<suppressDivineUntil)) return false;
+  });
   mod.hook(...mods.packet.get_all('C_START_SKILL'),realInput,event=>input(event));
   mod.hook(...mods.packet.get_all('C_PRESS_SKILL'),realInput,event=>{
     if(Number.isFinite(event.w))skillHeading=event.w;
@@ -200,8 +269,21 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     {order:-100,filter:{fake:false,silenced:null}},rememberHeading);
   for(const name of ['C_PRESS_SKILL','C_CANCEL_SKILL','C_START_TARGETED_SKILL',
     'C_START_COMBO_INSTANT_SKILL','C_START_INSTANCE_SKILL','C_START_INSTANCE_SKILL_EX'])
-    mod.hook(...mods.packet.get_all(name),realInput,cancel);
+    mod.hook(...mods.packet.get_all(name),realInput,()=>{cancel();clearDivine();});
   mod.hook(...mods.packet.get_all('S_ACTION_STAGE'),{order:110,filter:{fake:true}},event=>{
+    if (divine && mods.player.isMe(event.gameId) && event.stage===0) {
+      const cast=divine;
+      if (cast.phase==='block' && base(event.skill.id)===2 && event.id!==cast.sourceAction && !cast.blockAction) {
+        cast.blockAction=event.id;
+        mod.clearTimeout(divineTimer);
+        divineTimer=mod.setTimeout(()=>{
+          if (divine!==cast) return;
+          cast.blockReleased=true;
+          mod.send(...mods.packet.get_all('C_PRESS_SKILL'),{...cast.blockPacket,press:false});
+          divineTimer=mod.setTimeout(()=>finishDivine(cast),1);
+        },1);
+      } else if (event.id!==cast.sourceAction && event.id!==cast.blockAction) clearDivine();
+    }
     const cast=pending;
     if (!cast || !mods.player.isMe(event.gameId)) return;
     const skillBase=base(event.skill.id);
@@ -239,6 +321,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   });
   mod.hook(...mods.packet.get_all('S_ACTION_END'),{order:110,filter:{fake:true}},event=>{
     if (!mods.player.isMe(event.gameId)) return;
+    if (divine?.phase==='waiting' && event.id===divine.sourceAction) clearDivine();
     if (pending?.phase==='block' && event.id===pending.blockAction) {
       pending.blockEnded=true;
       const cast=pending;
@@ -247,16 +330,18 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     if (pending?.phase==='entry' && event.id===pending.entryAction) cancel();
   });
   mod.hook(...mods.packet.get_all('S_CANNOT_START_SKILL'),{order:-90,filter:{fake:null,silenced:null}},event=>{
+    if (divine?.phase==='block' && base(event.skill.id)===2) clearDivine();
     if (!pending || pending.phase==='waiting') return;
     const expected=pending.phase==='block'?2:pending.phase==='entry'?pending.entryBase:pending.mainBase;
     if (base(event.skill.id)===expected) cancel();
   });
   for(const name of ['S_LOGIN','S_LOAD_TOPO','S_RETURN_TO_LOBBY'])
-    mod.hook(name,'raw',{filter:{fake:null}},()=>{clientHeading=null;skillHeading=null;cancel();});
+    mod.hook(name,'raw',{filter:{fake:null}},()=>{clientHeading=null;skillHeading=null;cancel();clearDivine();suppressDivineUntil=0;});
   mod.hook(...mods.packet.get_all('S_CREATURE_LIFE'),{filter:{fake:null}},event=>{
-    if (mods.player.isMe(event.gameId) && !event.alive) cancel();
+    if (mods.player.isMe(event.gameId) && !event.alive) {cancel();clearDivine();}
   });
-  mods.action.on('reaction',cancel);
+  const interrupt=()=>{cancel();clearDivine();};
+  mods.action.on('reaction',interrupt);
 
   const coordination={
     captureBlockRequest(event) {
@@ -264,14 +349,15 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     },
     isStaleBlockRequest(event) {
       const cast=blockRequests.get(event);
-      return !!cast && (pending!==cast || cast.phase!=='block');
+      return !!cast && !((pending===cast || divine===cast) && cast.phase==='block');
     },
     shouldSuppressAutoBlock(event) {
       return !!pending && (pending.phase==='block' || pending.phase==='entry' && base(event.skill.id)===pending.entryBase);
     },
     onAutoBlock() {const cast=pending;if(cast?.phase==='waiting')later(()=>run(cast),1);},
     onHotkey(key) {
-      if (key==='cancel') {cancel();return;}
+      if (key==='cancel') {cancel();clearDivine();return;}
+      if (key==='divine') {startDivine();return;}
       const id=HOTKEY_SKILLS[key];
       if (!id || !enabled(id) || !mods.position.loc || !Number.isFinite(mods.position.w)) return;
 
@@ -281,8 +367,8 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
       if (pending?.mainId===id) return;
       const loc=copy(mods.position.loc);
       // Movement heading can point backward while the real skill request faces forward.
-      if (id===MAIN[13] && !Number.isFinite(skillHeading)) return;
-      const heading=id===MAIN[13] ? skillHeading : clientHeading;
+      if ([MAIN[13],MAIN[25]].includes(id) && !Number.isFinite(skillHeading)) return;
+      const heading=[MAIN[13],MAIN[25]].includes(id) ? skillHeading : clientHeading;
       const w=Number.isFinite(heading) ? heading : mods.position.w;
 
       input({skill:{id,type:1},loc,dest:{x:0,y:0,z:0},w,continue:false,
@@ -298,9 +384,11 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     if (!executable || !fs.existsSync(executable)) {
       mods.log.error('LANCER-PRECAST','AutoHotkey path is missing; cooldown-key precasting cannot start.');return;
     }
-    const keys=[settings.keyboard.spring,settings.keyboard.onslaught,settings.keyboard.backstep,settings.keyboard.block];
+    const keys=[settings.keyboard.spring,settings.keyboard.onslaught,
+      settings.keyboard.wallop||'3',
+      settings.keyboard.backstep,settings.keyboard.block,settings.keyboard.divineProtection||'XButton1'];
     if (keys.some(key=>typeof key!=='string' || !key.trim() || /[\r\n]/.test(key))) {
-      mods.log.error('LANCER-PRECAST','Spring, Onslaught, Backstep and Block keys must be configured.');return;
+      mods.log.error('LANCER-PRECAST','Spring, Onslaught, Wallop, Backstep, Block and Divine Protection keys must be configured.');return;
     }
     const child=require('child_process').spawn(executable,['/ErrorStdOut',path.join(__dirname,'lancer_precast_keys.ahk'),...keys,String(process.pid)],
       {windowsHide:true,stdio:['ignore','pipe','pipe']});
@@ -319,14 +407,14 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   const stopMonitor = () => {const child=monitor;monitor=null;if(child)child.kill();};
   mods.command.add("lancer entry",()=>{
     settings.enabled=!settings.enabled;
-    if(settings.enabled)startMonitor();else {cancel();stopMonitor();}
+    if(settings.enabled)startMonitor();else {cancel();clearDivine();stopMonitor();}
     mods.command.message("Lancer Entry: "+(settings.enabled?"ON":"OFF"));
   });
   this.loaded=()=>{if(mods.player.job!==1)stopMonitor();else startMonitor();};
   mod.hook('S_LOGIN','event',{order:110},this.loaded);
   startMonitor();
   this.destructor=()=>{
-    destroyed=true;cancel();stopMonitor();mods.command.remove("lancer entry");mods.action.off('reaction',cancel);
+    destroyed=true;cancel();clearDivine();stopMonitor();mods.command.remove("lancer entry");mods.action.off('reaction',interrupt);
     if(mods.lancerEntrySkill===coordination)delete mods.lancerEntrySkill;
   };
 };

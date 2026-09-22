@@ -71,8 +71,10 @@
       "ahkPath": "C:/Program Files/AutoHotkey/AutoHotkey.exe",
       "spring": "2",
       "onslaught": "5",
+      "wallop": "3",
       "backstep": "6",
-      "block": "RButton"
+      "block": "RButton",
+      "divineProtection": "XButton1"
     }
   },
   "lancer_silent_block": {
@@ -84,6 +86,7 @@
     "enabled": true
   },
   "priest_divine_charge": true,
+  "priest_sleep_emulation": true,
   "berserker_ngsp_charge": true,
   "advancedChargesRelease": true,
   "jitterCompensationCharges": true,

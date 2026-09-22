@@ -545,6 +545,8 @@ class Skills extends EventEmitter {
   isSupported = skillId17 => {
     if (this.mods.player.job === classes.PRIEST && Math.floor(skillId17 / 10000) === 28 &&
         !(this.mods.priestEntrySkill?.divineChargeEnabled() ?? this.mods.settings.info.priest_divine_charge !== false)) return false;
+    if (this.mods.player.job === classes.PRIEST && Math.floor(skillId17 / 10000) === 33 &&
+        this.mods.settings.info.priest_sleep_emulation === false) return false;
     const isSupported2 = this.mods.hardcoded.isSupported(skillId17);
     if (isSupported2 !== undefined) return isSupported2;
     const skillInfo3 = this.mods.utils.getSkillInfo(skillId17);

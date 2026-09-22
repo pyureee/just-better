@@ -11,12 +11,14 @@ SetBatchLines -1
 stdout := FileOpen("*", "w `n")
 chatOpen := false
 wasActive := false
-parentPid := A_Args[5]
+parentPid := A_Args[7]
 Hotkey, IfWinActive, ahk_exe TERA.exe
 Hotkey, % "~" A_Args[1], spring, On
 Hotkey, % "~" A_Args[2], onslaught, On
-Hotkey, % "~" A_Args[3], cancel, On
+Hotkey, % "~" A_Args[3], wallop, On
 Hotkey, % "~" A_Args[4], cancel, On
+Hotkey, % "~" A_Args[5], cancel, On
+Hotkey, % "~" A_Args[6], divine, On
 Hotkey, ~Enter, chat, On
 Hotkey, ~Escape, escape, On
 SetTimer, focusCheck, 50
@@ -30,6 +32,16 @@ return
 onslaught:
 if (!chatOpen)
     emit("onslaught")
+return
+
+wallop:
+if (!chatOpen)
+    emit("wallop")
+return
+
+divine:
+if (!chatOpen)
+    emit("divine")
 return
 
 cancel:

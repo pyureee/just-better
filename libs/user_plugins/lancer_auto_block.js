@@ -128,7 +128,9 @@ module.exports = function (mod, mods) {
       lastHitPerRealAdjusted = (skillData?.lastHit || 0) / mods.action.speed.real + 10;
     pendingBlockActions.add(event.id);
     later(() => {
-      later(() => {
+      const sendWhenSafe = () => {
+        const readyAt = mods.lancerDamageTickLock?.readyAtFor?.(event) || 0;
+        if (readyAt > Date.now()) return later(sendWhenSafe, readyAt - Date.now());
         pendingBlockActions.delete(event.id);
         if (mods.player.job !== classes.LANCER || mods.player.alive === false) return;
         if (!mods.settings.info.lancer_auto_block.enabled) return;
@@ -147,7 +149,8 @@ module.exports = function (mod, mods) {
         tap=record;
         sendTap(record,true);
         mods.lancerEntrySkill?.onAutoBlock?.(event.id);
-      }, mods.ping.jitter);
+      };
+      later(sendWhenSafe, mods.ping.jitter);
     }, Math.max(rearStartTimePerRealAdjusted, lastHitPerRealAdjusted));
   };
 
