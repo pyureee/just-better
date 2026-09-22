@@ -16,8 +16,6 @@ module.exports = function PriestEntrySkill(mod, mods) {
   if (entry.enabled === undefined) entry.enabled = true;
   if (settings.priest_divine_charge === undefined) settings.priest_divine_charge = true;
   let pending = null, timer = null, emitting = null, destroyed = false, finishDc = false;
-  const hiddenLocal = new Set(), hiddenServer = new Set();
-  const remember = (set,id) => {set.add(id);if(set.size>16)set.delete(set.values().next().value);};
   const enabled = id => !destroyed && entry.enabled !== false && mods.player.job === PRIEST &&
     mods.player.alive !== false && mods.utils.isEnabled(id) && mods.utils.canCastSkill() && !mods.action.inSpecialAction;
   const normalId = id => {
@@ -74,7 +72,7 @@ module.exports = function PriestEntrySkill(mod, mods) {
   const transition = cast => {
     if(!enabled(cast.mainId) || Date.now()>cast.deadline || !ownsEntry(cast))return cancel();
 
-    if(!cast.confirmed)return later(cast,transition);
+    if(!cast.confirmed || !cast.cooldownConfirmed || Date.now()<cast.hitReadyAt)return later(cast,transition);
     const data=resolve(cast.mainId);
     if(base(data.skillId)!==base(cast.mainId) || !data.chain || !castable(cast.mainId,data))return later(cast,transition);
     cast.phase='main';cast.deadline=Date.now()+budget();
@@ -119,7 +117,7 @@ module.exports = function PriestEntrySkill(mod, mods) {
     if(cast.phase==='waiting'){if(event.id!==cast.sourceId)cancel();return;}
     if(cast.phase==='entry') {
       if(base(event.skill.id)!==BLAST || cast.localId!==undefined && cast.localId!==event.id)return cancel();
-      cast.localId=event.id;remember(hiddenLocal,event.id);
+      cast.localId=event.id;
       if(event.stage===0)later(cast,transition,1);
     } else if(base(event.skill.id)===base(cast.mainId)){cast.mainAction=event.id;}
     else cancel();
@@ -128,7 +126,14 @@ module.exports = function PriestEntrySkill(mod, mods) {
     const cast=pending;
     if(!cast || !mods.player.isMe(event.gameId) || event.id===cast.previousServer)return;
     if(base(event.skill.id)===BLAST && cast.phase==='entry'){
-      cast.confirmed=true;cast.serverId=event.id;remember(hiddenServer,event.id);
+      if(!cast.confirmed){
+        const data=mods.skills._getInfo(event.skill.id);
+        const speed=mods.action.speed?.real;
+        const hit=Math.max(data?.lastHit||0,data?.cooldown?.delay||0,...(data?.targeting||[]));
+        if(!(speed>0) || !Number.isFinite(hit))return cancel();
+        cast.hitReadyAt=Date.now()+hit/speed;
+      }
+      cast.confirmed=true;cast.serverId=event.id;
     }
   });
   mod.hook(...mods.packet.get_all('S_ACTION_END'),{order:110,filter:{fake:null,silenced:null}},(event,fake)=>{
@@ -137,14 +142,14 @@ module.exports = function PriestEntrySkill(mod, mods) {
       !fake && event.id===cast.serverId && cast.phase==='entry' || fake && event.id===cast.mainAction)cancel();
   });
 
-  for(const name of ['S_ACTION_STAGE','S_ACTION_END'])
-    mod.hook(...mods.packet.get_all(name),{order:1000000,filter:{fake:null,silenced:null}},(event,fake)=>{
-      if(mods.player.isMe(event.gameId) && base(event.skill.id)===BLAST && (fake?hiddenLocal:hiddenServer).has(event.id))return false;
-    });
+  mod.hook(...mods.packet.get_all('S_START_COOLTIME_SKILL'),{order:-90,filter:{fake:false,silenced:null}},event=>{
+    if(pending?.phase==='entry' && pending.confirmed && base(event.skill.id)===BLAST && event.cooldown>0)
+      pending.cooldownConfirmed=true;
+  });
   mod.hook(...mods.packet.get_all('S_CANNOT_START_SKILL'),{order:-90,filter:{fake:null,silenced:null}},event=>{
     if(pending && [BLAST,base(pending.mainId)].includes(base(event.skill.id)))cancel();
   });
-  const reset=()=>{cancel();hiddenLocal.clear();hiddenServer.clear();finishDc=false;};
+  const reset=()=>{cancel();finishDc=false;};
   for(const name of ['S_LOGIN','S_LOAD_TOPO','S_RETURN_TO_LOBBY'])mod.hook(name,'raw',{filter:{fake:null}},reset);
   mod.hook(...mods.packet.get_all('S_CREATURE_LIFE'),{filter:{fake:null}},event=>{if(mods.player.isMe(event.gameId)&&!event.alive)reset();});
   mods.action.on('reaction',cancel);

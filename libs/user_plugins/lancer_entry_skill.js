@@ -22,7 +22,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   let pending = null, timer = null, destroyed = false;
   let monitor = null;
 
-  let clientHeading = null;
+  let clientHeading = null, skillHeading = null;
   const rememberHeading = event => {
     if (Number.isFinite(event.w)) clientHeading = event.w;
   };
@@ -83,7 +83,8 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   };
   const packet = (cast,id) => ({...cloneEvent(cast.event),skill:{...cast.event.skill,id},
     loc:copy(mods.position.loc || cast.event.loc),
-    w:cast.fromHotkey && Number.isFinite(clientHeading) ? clientHeading : cast.event.w,
+    w:cast.fromHotkey && Number.isFinite(cast.mainBase === 13 ? skillHeading : clientHeading) ?
+      (cast.mainBase === 13 ? skillHeading : clientHeading) : cast.event.w,
     continue:false});
   const send = (cast,id) => mod.send(...mods.packet.get_all('C_START_SKILL'),packet(cast,id));
   const localId = () => mods.action.stage?.id;
@@ -165,7 +166,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     startEntry(cast);
   };
   const input = (event, fromHotkey = false) => {
-    if (!fromHotkey) rememberHeading(event);
+    if (!fromHotkey) {rememberHeading(event);if (Number.isFinite(event.w)) skillHeading=event.w;}
     const id = event.skill.id, mainBase = base(id);
     if (!MAIN[mainBase] || id !== MAIN[mainBase] || event.continue || !enabled(id) || !Number.isFinite(event.w)) {
       cancel(); return;
@@ -192,6 +193,9 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   };
   const realInput={order:-15,filter:{fake:false,silenced:false}};
   mod.hook(...mods.packet.get_all('C_START_SKILL'),realInput,event=>input(event));
+  mod.hook(...mods.packet.get_all('C_PRESS_SKILL'),realInput,event=>{
+    if(Number.isFinite(event.w))skillHeading=event.w;
+  });
   mod.hook(...mods.packet.get_all('C_PLAYER_LOCATION'),
     {order:-100,filter:{fake:false,silenced:null}},rememberHeading);
   for(const name of ['C_PRESS_SKILL','C_CANCEL_SKILL','C_START_TARGETED_SKILL',
@@ -248,7 +252,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     if (base(event.skill.id)===expected) cancel();
   });
   for(const name of ['S_LOGIN','S_LOAD_TOPO','S_RETURN_TO_LOBBY'])
-    mod.hook(name,'raw',{filter:{fake:null}},()=>{clientHeading=null;cancel();});
+    mod.hook(name,'raw',{filter:{fake:null}},()=>{clientHeading=null;skillHeading=null;cancel();});
   mod.hook(...mods.packet.get_all('S_CREATURE_LIFE'),{filter:{fake:null}},event=>{
     if (mods.player.isMe(event.gameId) && !event.alive) cancel();
   });
@@ -276,7 +280,10 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
 
       if (pending?.mainId===id) return;
       const loc=copy(mods.position.loc);
-      const w=Number.isFinite(clientHeading) ? clientHeading : mods.position.w;
+      // Movement heading can point backward while the real skill request faces forward.
+      if (id===MAIN[13] && !Number.isFinite(skillHeading)) return;
+      const heading=id===MAIN[13] ? skillHeading : clientHeading;
+      const w=Number.isFinite(heading) ? heading : mods.position.w;
 
       input({skill:{id,type:1},loc,dest:{x:0,y:0,z:0},w,continue:false,
         moving:false,target:0n,unk:true,unk2:false,
