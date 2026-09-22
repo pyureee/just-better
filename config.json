@@ -1,0 +1,87 @@
+{
+  "enabled": true,
+  "block": true,
+  "jaunt": true,
+  "debug": false,
+  "dash": 25,
+  "delay": 0,
+  "printPing": true,
+  "printJitter": false,
+  "pingRenewTimer": 100,
+  "maxPingCacheSize": 10,
+  "maxAcceptedJitter": 350,
+  "usingVPN": false,
+  "fakePing": false,
+  "lancer_auto_block": {
+    "enabled": true,
+    "skills": {
+      "1": false,
+      "3": true,
+      "4": true,
+      "7": false,
+      "9": false,
+      "12": true,
+      "13": true,
+      "17": true,
+      "23": false,
+      "24": true,
+      "25": true,
+      "27": true,
+      "28": true,
+      "30": true
+    }
+  },
+  "bpr": false,
+  "predictAttack": false,
+  "zerk_auto_block": {
+    "enabled": true,
+    "skills": {
+      "4": true,
+      "6": true,
+      "18": true,
+      "26": true,
+      "37": true,
+      "1-0": true,
+      "15-10": true,
+      "15-11": true,
+      "15-12": true,
+      "15-13": true,
+      "15-14": true,
+      "24-0": true,
+      "24-10": true,
+      "24-11": true,
+      "24-12": true,
+      "24-13": true,
+      "31-1": true
+    }
+  },
+  "flatten_chain": true,
+  "ninja_shima": true,
+  "ninja_transition_buffer": {
+    "enabled": true,
+    "maxWaitMs": 250,
+    "transitions": {}
+  },
+  "ninja_load_reduce": true,
+  "ninja_retry_policy": true,
+  "lancer_entry_precast": {
+    "enabled": true,
+    "keyboard": {
+      "enabled": true,
+      "ahkPath": "C:/Program Files/AutoHotkey/AutoHotkey.exe",
+      "spring": "2",
+      "onslaught": "5",
+      "backstep": "6",
+      "block": "RButton"
+    }
+  },
+  "lancer_silent_block": {
+    "enabled": true,
+    "afterBlock": true,
+    "afterShieldCounter": true
+  },
+  "priest_entry_precast": {
+    "enabled": true
+  },
+  "priest_divine_charge": true
+}

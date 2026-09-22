@@ -1,0 +1,24 @@
+{
+  "name": "ping-remover-legacy",
+  "options": {
+    "guiName": "Ping-Remover (patch 100)"
+  },
+  "dependencies": {
+    "library": "https://raw.githubusercontent.com/tera-private-toolbox/library/master/module.json",
+    "ping": "https://git.teragame.su/tera/ping/raw/master/module.json"
+  },
+  "servers": [
+    "https://raw.githubusercontent.com/pyureee/just-better/main/"
+  ],
+  "conflicts": [
+    "ping-remover-agaia",
+    "ping-remover",
+    "skill-prediction",
+    "ngsp",
+    "ngsp_100",
+    "ngsp_92"
+  ],
+  "disableAutoUpdate": false,
+  "description": "Customized Ping Remover.",
+  "version": ""
+}

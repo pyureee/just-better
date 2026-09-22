@@ -1,0 +1,15 @@
+module.exports = {
+  WARRIOR: 0,
+  LANCER: 1,
+  SLAYER: 2,
+  BERSERKER: 3,
+  SORCERER: 4,
+  ARCHER: 5,
+  PRIEST: 6,
+  MYSTIC: 7,
+  REAPER: 8,
+  GUNNER: 9,
+  BRAWLER: 10,
+  NINJA: 11,
+  VALKYRIE: 12
+};
