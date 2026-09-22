@@ -3180,7 +3180,7 @@ function createEmulationLifetime(mods) {
 
 module.exports = function (mod, mods) {
   const lifetime=createEmulationLifetime(mods);
-  const priestRequests = new WeakMap();
+  const automatedRequests = new WeakMap();
   let expectedSkillId = null,
     expectedEndType = null,
     castQueue = {
@@ -3451,13 +3451,13 @@ module.exports = function (mod, mods) {
   let incrementNextSkillId = false;
   const executeCast = async (packetName2, event4, initialSkillData, initialCastResult, boomerangRecovery = false) => {
       if(lifetime.closed)return;
-      if (priestRequests.has(event4) && !priestRequests.get(event4)()) return;
+      if (automatedRequests.has(event4) && !automatedRequests.get(event4)()) return;
       if (mods.lancerEntrySkill?.isStaleBlockRequest?.(event4) ||
           lancerSilentBlock.isStaleBlockRequest(event4) ||
           mods.lancerAutoBlock?.isStaleBlockRequest?.(event4)) return;
       const flattenAttempt = flattenChain.get(event4);
       if (lifetime.closed || !flattenChain.valid(flattenAttempt)) return;
-      if (deferredPacket && priestRequests.has(deferredPacket[2]) && !priestRequests.get(deferredPacket[2])()) {deferredPacket = null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
+      if (deferredPacket && automatedRequests.has(deferredPacket[2]) && !automatedRequests.get(deferredPacket[2])()) {deferredPacket = null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       deferredPacket && (sendingRetry = true, mod.send(...deferredPacket), sendingRetry = false, deferredPacket = null);
       const byGrant2 = event4["continue"],
         press2 = event4.press,
@@ -3491,7 +3491,7 @@ module.exports = function (mod, mods) {
         jitterPlusDelay > 0 && (await mods.utils.sleep(jitterPlusDelay));
       }
       if (lifetime.closed || !flattenChain.valid(flattenAttempt)) return;
-      if (priestRequests.has(event4) && !priestRequests.get(event4)()) return;
+      if (automatedRequests.has(event4) && !automatedRequests.get(event4)()) return;
       if (mods.lancerEntrySkill?.isStaleBlockRequest?.(event4) ||
           lancerSilentBlock.isStaleBlockRequest(event4) ||
           mods.lancerAutoBlock?.isStaleBlockRequest?.(event4)) return;
@@ -3539,7 +3539,7 @@ module.exports = function (mod, mods) {
       }
       if ((charge2 || skillTypeMatches) && !byGrant2) {
         mod.setTimeout(() => {
-          if(lifetime.closed || priestRequests.has(event4) && !priestRequests.get(event4)())return;
+          if(lifetime.closed || automatedRequests.has(event4) && !automatedRequests.get(event4)())return;
           if (unkn32) incrementNextSkillId = true;
           grantSkillDeadline = Date.now() + mods.utils.getPacketBuffer();
           mod.send(...mods.packet.get_all("S_GRANT_SKILL"), {
@@ -3558,7 +3558,7 @@ module.exports = function (mod, mods) {
       if (ninjaShima.start(ninjaCast)) return;
       if (flattenChain.start(flattenAttempt) || boomerangRecovery || boomerangGuard.start(boomerangCast)) return;
       if (ninjaRetryPolicy.start(retryAttempt)) return;
-      if (priestRequests.has(event4)) return;
+      if (automatedRequests.has(event4)) return;
       const retryCount = mods.skills.getRetryCount(skillId3),
         retryDelayMs = mods.hardcoded.getRetryDelay(skillId3),
         allowThroughFutureRetry = mods.hardcoded.getAllowThroughFutureRetry(skillId3),
@@ -3599,9 +3599,10 @@ module.exports = function (mod, mods) {
     },
     handleStartSkill = (packetName3, event5, fake5) => {
       if (sendingRetry) return;
-      const requestCheck = mods.priestEntrySkill?.captureRequest(packetName3, event5, fake5);
-      if (requestCheck) priestRequests.set(event5, requestCheck);
-      if (deferredPacket && priestRequests.has(deferredPacket[2]) && !priestRequests.get(deferredPacket[2])()) {deferredPacket=null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
+      const requestCheck = mods.priestEntrySkill?.captureRequest(packetName3, event5, fake5) ||
+        mods.cycloneResetMacro?.captureRequest(packetName3, event5, fake5);
+      if (requestCheck) automatedRequests.set(event5, requestCheck);
+      if (deferredPacket && automatedRequests.has(deferredPacket[2]) && !automatedRequests.get(deferredPacket[2])()) {deferredPacket=null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       if (fake5) {
         mods.lancerEntrySkill?.captureBlockRequest?.(event5);
         mods.lancerAutoBlock?.captureBlockRequest?.(event5);
@@ -3641,6 +3642,20 @@ module.exports = function (mod, mods) {
       delay2 = Math.floor(delay2 + processingOffsetMs);
       if (skillData3.shimaNinja) delay2 = 0;
       if (delay2 < 0) delay2 = 0;
+      if (mods.player.job === classes.BERSERKER && packetName3 === 'C_PRESS_SKILL' &&
+          event5.press === true && Math.floor(event5.skill.id / 10000) === 10 &&
+          skillData3.immediate && skillData3.code === 2 &&
+          mods.action.serverInAction && Math.floor((mods.action.serverStage?.skill?.id || 0) / 10000) === 3 &&
+          mods.action.serverStage.skill.id % 100 === 13) {
+        const serverStage = mods.action.serverStage;
+        const pending = mods.skills._getInfo(serverStage.skill.id)?.cancels?.pendingStartTime;
+        if (Number.isFinite(pending) && serverStage.speed > 0) {
+          const serverAge = Date.now() - serverStage._time;
+          if (serverAge >= 0)
+            delay2 = Math.max(delay2, Math.ceil(pending / serverStage.speed - serverAge -
+              (mods.ping.ping || 0) + (mods.ping.jitter || 0) + 15));
+        }
+      }
       if (!castQueue.counter && ninjaTransitions.capture(packetName3, event5, skillData3, castResult3, delay2)) return false;
       if (delay2 > 100 && skillData3.failed) {
         if (boomerangGuard.canRecover(packetName3, event5, skillData3, castResult3)) {

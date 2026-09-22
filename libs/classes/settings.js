@@ -10,7 +10,12 @@ class Settings {
       jaunt: true,
       debug: false,
       dash: 25,
-      delay: 0
+      delay: 0,
+      berserker_ngsp_charge: true,
+      advancedChargesRelease: true,
+      jitterCompensationCharges: true,
+      jitterCompensationChargesMin: 0,
+      jitterCompensationChargesMax: 60
     };
     try {
       const parsedData = JSON.parse(fs.readFileSync(path.join(__dirname, "../../config.json"), "utf-8"));

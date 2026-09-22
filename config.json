@@ -83,5 +83,10 @@
   "priest_entry_precast": {
     "enabled": true
   },
-  "priest_divine_charge": true
+  "priest_divine_charge": true,
+  "berserker_ngsp_charge": true,
+  "advancedChargesRelease": true,
+  "jitterCompensationCharges": true,
+  "jitterCompensationChargesMin": 0,
+  "jitterCompensationChargesMax": 60
 }

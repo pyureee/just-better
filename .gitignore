@@ -5,5 +5,4 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-/libs/user_plugins/cyclone_reset_macro.js
 /libs/user_plugins/cyclone_reset_macro.js.disabled
