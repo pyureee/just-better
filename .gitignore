@@ -4,6 +4,4 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
-
-/libs/user_plugins/cyclone_reset_macro.js.disabled
 /internal-settings.json
