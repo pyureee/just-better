@@ -1,5 +1,7 @@
 # Just Better Ping Remover
 
+GitHub downloads include `config.json`. Toolbox auto-updates leave each installed `config.json` untouched. To publish changed defaults, copy your local `config.json` into this repository before committing and pushing.
+
 Use these commands in game. `<ms>` and `<value>` are required inputs; `[name]` is optional.
 
 | Command | Description |

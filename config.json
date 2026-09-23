@@ -10,7 +10,7 @@
   "pingRenewTimer": 100,
   "maxPingCacheSize": 10,
   "maxAcceptedJitter": 350,
-  "usingVPN": false,
+  "usingVPN": true,
   "fakePing": false,
   "lancer_auto_block": {
     "enabled": true,
