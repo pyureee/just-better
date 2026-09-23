@@ -6,4 +6,4 @@ node_modules/
 Thumbs.db
 
 /libs/user_plugins/cyclone_reset_macro.js.disabled
-internal-settings.json
+/internal-settings.json

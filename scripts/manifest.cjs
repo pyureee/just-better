@@ -2,14 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const root = path.resolve(__dirname, '..');
-const preserve = new Set(['config.json', 'module.config.json']);
+const preserve = new Set(['module.config.json']);
+const excluded = new Set(['config.json', 'internal-settings.json']);
 function walk(relative) {
   const absolute = path.join(root, relative);
   if (fs.statSync(absolute).isFile()) return [relative];
   return fs.readdirSync(absolute).sort().flatMap(name => walk(relative + '/' + name));
 }
 const files = {};
-for (const file of ['index.js', 'module.json', 'module.config.json', 'config.json', 'skills.json', ...walk('libs'), ...walk('skills')].sort()) {
+for (const file of ['index.js', 'module.json', 'module.config.json', 'config.json', 'internal-settings.json', 'skills.json', ...walk('libs'), ...walk('skills')].sort((a, b) => a.localeCompare(b))) {
+  if (excluded.has(file)) continue;
   const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex').toUpperCase();
   files[file] = preserve.has(file) ? {overwrite: false, hash} : hash;
 }
