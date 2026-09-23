@@ -55,35 +55,15 @@
       "31-1": true
     }
   },
-  "flatten_chain": true,
-  "ninja_shima": true,
-  "ninja_transition_buffer": {
+  "AHK setup": {
     "enabled": true,
-    "maxWaitMs": 250,
-    "transitions": {}
-  },
-  "ninja_load_reduce": true,
-  "ninja_retry_policy": true,
-  "lancer_entry_precast": {
-    "enabled": true,
-    "keyboard": {
-      "enabled": true,
-      "ahkPath": "C:/Program Files/AutoHotkey/AutoHotkey.exe",
-      "spring": "2",
-      "onslaught": "5",
-      "wallop": "3",
-      "backstep": "6",
-      "block": "RButton",
-      "divineProtection": "XButton1"
-    }
-  },
-  "lancer_silent_block": {
-    "enabled": true,
-    "afterBlock": true,
-    "afterShieldCounter": true
-  },
-  "priest_entry_precast": {
-    "enabled": true
+    "ahkPath": "C:/Program Files/AutoHotkey/AutoHotkey.exe",
+    "spring": "2",
+    "onslaught": "5",
+    "wallop": "3",
+    "backstep": "6",
+    "block": "RButton",
+    "divineProtection": "XButton1"
   },
   "priest_divine_charge": true,
   "priest_sleep_emulation": true

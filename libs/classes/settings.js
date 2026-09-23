@@ -1,5 +1,10 @@
 const fs = require("fs"),
   path = require("path");
+const CONFIG_PATH = path.join(__dirname, "../../config.json");
+const INTERNAL_PATH = path.join(__dirname, "../../internal-settings.json");
+const INTERNAL_KEYS = ["flatten_chain", "ninja_shima", "ninja_transition_buffer",
+  "ninja_load_reduce", "ninja_retry_policy", "lancer_entry_precast",
+  "lancer_silent_block", "priest_entry_precast"];
 class Settings {
   constructor(mod2, mods2) {
     this.mod = mod2;
@@ -12,12 +17,12 @@ class Settings {
       dash: 25,
       delay: 0
     };
-    try {
-      const parsedData = JSON.parse(fs.readFileSync(path.join(__dirname, "../../config.json"), "utf-8"));
-      this.info = Object.assign({}, info2, parsedData);
-    } catch (error) {
-      this.info = info2;
-    }
+    let visible = {}, internal = {};
+    try { visible = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8")); } catch (error) {}
+    try { internal = JSON.parse(fs.readFileSync(INTERNAL_PATH, "utf-8")); } catch (error) {}
+    this.info = Object.assign({}, info2, internal, visible);
+    if (this.info["AHK setup"] === undefined && this.info.lancer_entry_precast?.keyboard)
+      this.info["AHK setup"] = this.info.lancer_entry_precast.keyboard;
     this.mods.command.add("$default", this.toggle);
     this.mods.command.add("on", this.on);
     this.mods.command.add("off", this.off);
@@ -73,7 +78,17 @@ class Settings {
     this.info.dash = dash2;
   }
   destructor() {
-    fs.writeFileSync(path.join(__dirname, "../../config.json"), JSON.stringify(this.info, null, "  "));
+    const visible = {...this.info}, internal = {};
+    for (const key of INTERNAL_KEYS) {
+      if (key in visible) internal[key] = visible[key];
+      delete visible[key];
+    }
+    if (internal.lancer_entry_precast?.keyboard) {
+      internal.lancer_entry_precast = {...internal.lancer_entry_precast};
+      delete internal.lancer_entry_precast.keyboard;
+    }
+    fs.writeFileSync(INTERNAL_PATH, JSON.stringify(internal, null, "  "));
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(visible, null, "  "));
   }
 }
 module.exports = Settings;

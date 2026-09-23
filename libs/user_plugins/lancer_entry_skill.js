@@ -374,15 +374,16 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   };
   mods.lancerEntrySkill=coordination;
   const startMonitor = () => {
-    if (destroyed || monitor || settings.enabled===false || !settings.keyboard?.enabled || mods.player.job!==1) return;
+    const keyboard=mods.settings.info['AHK setup'] || settings.keyboard;
+    if (destroyed || monitor || settings.enabled===false || !keyboard?.enabled || mods.player.job!==1) return;
     const fs=require('fs'),path=require('path');
-    const executable=settings.keyboard.ahkPath;
+    const executable=keyboard.ahkPath;
     if (!executable || !fs.existsSync(executable)) {
       mods.log.error('LANCER-PRECAST','AutoHotkey path is missing; cooldown-key precasting cannot start.');return;
     }
-    const keys=[settings.keyboard.spring,settings.keyboard.onslaught,
-      settings.keyboard.wallop||'3',
-      settings.keyboard.backstep,settings.keyboard.block,settings.keyboard.divineProtection||'XButton1'];
+    const keys=[keyboard.spring,keyboard.onslaught,
+      keyboard.wallop||'3',
+      keyboard.backstep,keyboard.block,keyboard.divineProtection||'XButton1'];
     if (keys.some(key=>typeof key!=='string' || !key.trim() || /[\r\n]/.test(key))) {
       mods.log.error('LANCER-PRECAST','Spring, Onslaught, Wallop, Backstep, Block and Divine Protection keys must be configured.');return;
     }
