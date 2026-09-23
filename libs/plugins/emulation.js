@@ -3102,7 +3102,7 @@ function createLancerSilentBlock(mod, mods, callbacks) {
     },
     dispose(){destroyed=true;clear();mods.command.remove('lancer sb');mods.action.off('reaction',reaction);if(mods.lancerSilentBlock===api)delete mods.lancerSilentBlock;}
   };
-  mods.command.add("lancer sb",()=>{settings.enabled=!settings.enabled;if(!settings.enabled)clear();mods.command.message("Lancer Silent Block: "+(settings.enabled?"ON":"OFF"));});
+  mods.command.add("lancer sb",()=>{settings.enabled=!settings.enabled;if(!settings.enabled)clear();mods.settings.save?.();mods.command.message("Lancer Silent Block: "+(settings.enabled?"ON":"OFF"));});
   mods.lancerSilentBlock=api;
   return api;
 }

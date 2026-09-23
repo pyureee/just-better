@@ -32,28 +32,34 @@ class Settings {
   }
   toggle = () => {
     this.info.enabled = !this.info.enabled;
+    this.save();
     this.mods.command.message("PR has been turned", this.info.enabled ? "on" : "off");
   };
   off = () => {
     this.info.enabled = false;
+    this.save();
     this.mods.command.message("PR has been turned off");
   };
   on = () => {
     this.info.enabled = true;
+    this.save();
     this.mods.command.message("PR has been turned on");
   };
   block = () => {
     this.info.block = !this.info.block;
+    this.save();
     this.mods.command.message("Smooth block has been turned", this.info.block ? "on" : "off");
   };
   delay = delay2 => {
     delay2 = +delay2;
     if (isNaN(delay2) || delay2 < 0) return this.mods.command.message("The artificial delay needs to be a number >= 0");
     this.info.delay = delay2;
+    this.save();
     this.mods.command.message("Set artificial delay to", delay2);
   };
   jaunt = () => {
     this.info.jaunt = !this.info.jaunt;
+    this.save();
     this.mods.command.message("Smooth jaunt has been turned", this.info.jaunt ? "on" : "off");
   };
   get enabled() {
@@ -77,7 +83,7 @@ class Settings {
   set dash(dash2) {
     this.info.dash = dash2;
   }
-  destructor() {
+  save() {
     const visible = {...this.info}, internal = {};
     for (const key of INTERNAL_KEYS) {
       if (key in visible) internal[key] = visible[key];
@@ -89,6 +95,9 @@ class Settings {
     }
     fs.writeFileSync(INTERNAL_PATH, JSON.stringify(internal, null, "  "));
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(visible, null, "  "));
+  }
+  destructor() {
+    this.save();
   }
 }
 module.exports = Settings;

@@ -180,6 +180,7 @@ module.exports = function (mod, mods) {
     if (!skillKey) {
       mods.settings.info.lancer_auto_block.enabled = !mods.settings.info.lancer_auto_block.enabled;
       if (!mods.settings.info.lancer_auto_block.enabled) cancelBlocks();
+      mods.settings.save?.();
       mods.command.message("Auto block has been turned " + (mods.settings.info.lancer_auto_block.enabled ? "on" : "off"));
       return;
     }
@@ -188,6 +189,7 @@ module.exports = function (mod, mods) {
       return;
     }
     mods.settings.info.lancer_auto_block.skills[skillKey] = !mods.settings.info.lancer_auto_block.skills[skillKey];
+    mods.settings.save?.();
     mods.command.message("Auto blocking for " + skillKey + " has been turned " + (mods.settings.info.lancer_auto_block.skills[skillKey] ? "on" : "off"));
   });
   this.destructor = () => {

@@ -99,12 +99,14 @@ module.exports = function (mod, mods) {
   mods.command.add("zerk ab", () => {
     cancelAutoBlock();
     const config=mods.settings.info.zerk_auto_block;config.enabled=!config.enabled;
+    mods.settings.save?.();
     mods.command.message("Zerk Auto Block: " + (config.enabled ? "ON" : "OFF"));
   });
   mods.command.add("zerkblock", skillKey => {
     cancelAutoBlock();
     if (!skillKey) {
       mods.settings.info.zerk_auto_block.enabled = !mods.settings.info.zerk_auto_block.enabled;
+      mods.settings.save?.();
       mods.command.message("Auto block has been turned " + (mods.settings.info.zerk_auto_block.enabled ? "on" : "off"));
       return;
     }
@@ -113,6 +115,7 @@ module.exports = function (mod, mods) {
       return;
     }
     mods.settings.info.zerk_auto_block.skills[skillKey] = !mods.settings.info.zerk_auto_block.skills[skillKey];
+    mods.settings.save?.();
     mods.command.message("Auto blocking for " + skillKey + " has been turned " + (mods.settings.info.zerk_auto_block.skills[skillKey] ? "on" : "off"));
   });
 };

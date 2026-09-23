@@ -405,6 +405,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   mods.command.add("lancer entry",()=>{
     settings.enabled=!settings.enabled;
     if(settings.enabled)startMonitor();else {cancel();clearDivine();stopMonitor();}
+    mods.settings.save?.();
     mods.command.message("Lancer Entry: "+(settings.enabled?"ON":"OFF"));
   });
   this.loaded=()=>{if(mods.player.job!==1)stopMonitor();else startMonitor();};

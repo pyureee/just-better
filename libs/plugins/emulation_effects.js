@@ -19,6 +19,7 @@ module.exports = function (mod, mods) {
     if (isNaN(dash2)) return mods.command.message("Dash delay needs to be a number");
     const dash3 = mods.settings.dash;
     mods.settings.dash = dash2;
+    mods.settings.save?.();
     mods.command.message("Dash delay has been set to " + mods.settings.dash + "ms from " + dash3 + "ms");
   });
   mod.hook(...mods.packet.get_all("S_ACTION_STAGE"), hooks.READ_DESTINATION_ALL, event => {

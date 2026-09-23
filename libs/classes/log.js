@@ -35,6 +35,7 @@ class Log {
   };
   toggleDebug = () => {
     this.mods.settings.debug = !this.mods.settings.debug;
+    this.mods.settings.save?.();
     this.mods.command.message("Debugging has been turned", this.mods.settings.debug ? "on" : "off");
   };
   destructor = () => {
