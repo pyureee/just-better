@@ -115,7 +115,7 @@ class PingRemover {
       fileName = fileName.replace(__dirname, "");
       let parts = fileName.split("\\");
       parts.length === 1 && renamedFile && (fileName = renamedFile.replace(__dirname, ""), parts = fileName.split("\\"));
-      if (parts.length < 2) return;
+      if (parts.length < 2 || !parts[1].endsWith(".js")) return;
       if (parts[0] === "enums") return;
       const includesResult = parts[0].includes("plugins"),
         replaceResult = parts[1].replace(".js", ""),
