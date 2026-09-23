@@ -1,7 +1,5 @@
 'use strict';
 
-
-
 const PRIEST = 6, BLAST = 11, DIVINE_CHARGE = 28;
 const REQUEST_VARIANTS = new Set([0,10,20]);
 const canonical = id => id-id%100;

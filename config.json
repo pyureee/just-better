@@ -86,10 +86,5 @@
     "enabled": true
   },
   "priest_divine_charge": true,
-  "priest_sleep_emulation": true,
-  "berserker_ngsp_charge": true,
-  "advancedChargesRelease": true,
-  "jitterCompensationCharges": true,
-  "jitterCompensationChargesMin": 0,
-  "jitterCompensationChargesMax": 60
+  "priest_sleep_emulation": true
 }

@@ -1,6 +1,20 @@
 const hooks = require("../enums/hooks"),
   EventEmitter = require("events");
 class Action extends EventEmitter {
+  on(name, listener) {
+    if (name === 'reaction') {
+      this.reactionListeners.add(listener);
+      return this;
+    }
+    return super.on(name, listener);
+  }
+  off(name, listener) {
+    if (name === 'reaction') {
+      this.reactionListeners.delete(listener);
+      return this;
+    }
+    return super.off(name, listener);
+  }
   get inAction() {
     return this.info.inAction;
   }
@@ -81,6 +95,10 @@ class Action extends EventEmitter {
   };
   constructor(mod2, mods2) {
     super();
+    this.reactionListeners = new Set();
+    super.on('reaction', reaction => {
+      for (const listener of [...this.reactionListeners]) listener(reaction);
+    });
     this.mod = mod2;
     this.mods = mods2;
     this.info = {

@@ -253,34 +253,6 @@ class Skills extends EventEmitter {
       type: 0
     };
     if ((byGrant3 || currentSkillId === skillId15) && currentSkillData.type === "movingCharge" && press3 === false) {
-      const currentBaseSkill = this.mods.utils.getSkillInfo(currentSkillId).skill;
-      const ngspBerserkerCharge = this.mods.settings.info.berserker_ngsp_charge === true &&
-        this.mods.player.job === classes.BERSERKER && [3, 10].includes(currentBaseSkill);
-      if (ngspBerserkerCharge) {
-        const stages = currentSkillData.animLength;
-        let stage = Math.min(this.mods.action.stage.stage, stages.length - 1);
-        let elapsed = Math.max(0, Date.now() - this.mods.action.stage._stageTime);
-        const speed = Math.max(0.01, this.mods.action.speed?.real || 1);
-        while (stage + 1 < stages.length && elapsed >= stages[stage][0] / speed + 15) {
-          elapsed -= stages[stage][0] / speed;
-          stage++;
-        }
-        const serverStage = this.mods.action.serverStage;
-        if (this.mods.settings.info.advancedChargesRelease === true &&
-            this.mods.action.serverInAction && serverStage?.skill?.id === currentSkillId &&
-            serverStage._time >= this.mods.action.stage._time &&
-            Number.isInteger(serverStage.stage) && serverStage.stage >= 0) {
-          stage = Math.min(stage, serverStage.stage);
-        }
-        const chargeJitter = this.mods.settings.info.jitterCompensationCharges === true ?
-          Math.min(this.mods.settings.info.jitterCompensationChargesMax ?? 60,
-            Math.max(this.mods.settings.info.jitterCompensationChargesMin ?? 0, this.mods.ping.jitter || 0)) : 0;
-        return {
-          skillId: stages[stage][1],
-          time: chargeJitter ? -chargeJitter : 0,
-          charge: true
-        };
-      }
       let chargeDelayMs = this.mods.ping.jitter;
       const elapsedChargeTime = Date.now() - this.mods.action.stage._stageTime - chargeDelayMs,
         remainingChargeTime = Math.abs(currentSkillData.animLength[this.mods.action.stage.stage][0] - (elapsedChargeTime + chargeDelayMs) * this.mods.action.speed.real);

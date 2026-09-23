@@ -166,8 +166,6 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     if (cast.phase !== 'entry' || !enabled(cast.mainId)) return cancel();
     if (!mods.action.inAction || localId() !== cast.entryAction) return cancel();
     if (Date.now() > cast.deadline) return cancel();
-
-
     const wait = Math.max(cast.readyAt-Date.now(),remaining(cast.mainId));
     if (!Number.isFinite(wait)) return cancel();
     if (wait > 0) return later(()=>finishEntry(cast),Math.min(wait,10));
@@ -202,8 +200,6 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     if (!enabled(cast.mainId) || !allowed(cast.mainId,true)) return cancel();
     if (Date.now() > cast.expires) return cancel();
     if (cast.phase === 'block') {
-
-
       if (cast.blockEnded) return startEntry(cast);
       return later(()=>run(cast),10);
     }

@@ -21,10 +21,6 @@ const hooks = require("../enums/hooks"),
   classes = require("../enums/classes");
 
 
-const RingBuffer = (() => {
-'use strict';
-
-
 class RingBuffer {
   constructor(capacity) {
     if (!Number.isInteger(capacity) || capacity < 1) throw new RangeError('Invalid history capacity');
@@ -50,16 +46,6 @@ class RingBuffer {
     }
   }
 }
-
-return RingBuffer;
-
-})();
-
-
-const TimerQueue = (() => {
-'use strict';
-
-
 
 class TimerQueue {
   constructor() {
@@ -203,17 +189,8 @@ class TimerQueue {
   }
 }
 
-return TimerQueue;
-
-})();
-
-
-const createFlattenChain = (() => {
-'use strict';
-
-
-
-return function createFlattenChain(mod, mods, callbacks) {
+function createFlattenChain(mod, mods, callbacks) {
+  'use strict';
   const requests = new WeakMap();
   const settings = mods.settings.info;
   if (settings.flatten_chain === undefined) settings.flatten_chain = true;
@@ -395,17 +372,10 @@ return function createFlattenChain(mod, mods, callbacks) {
   return {prepare, start, get: event => requests.get(event), valid: validRequest,
     abandon: attempt => {if (current === attempt) reset();},
     reset: () => {reset(); mods.action.off('reaction', reset);}};
-};
+}
 
-})();
-
-
-const createBoomerangGuard = (() => {
-'use strict';
-
-
-
-return function createBoomerangGuard(mod, mods, resend) {
+function createBoomerangGuard(mod, mods, resend) {
+  'use strict';
   let current = null, timer = null, expiryTimer = null;
   let lastDiagnostic = -Infinity;
   const isAvalanche = id => Math.floor(id / 10000) === 8 && AVALANCHE_VARIANTS.includes(id % 100);
@@ -632,17 +602,10 @@ return function createBoomerangGuard(mod, mods, resend) {
     return true;
   };
   return { canRecover, capture, start, reset, handleInput };
-};
+}
 
-})();
-
-
-const createNinjaShima = (() => {
-'use strict';
-
-
-
-return function createNinjaShima(mod, mods, callbacks) {
+function createNinjaShima(mod, mods, callbacks) {
+  'use strict';
   const settings = mods.settings.info;
   if (settings.ninja_shima === undefined) settings.ninja_shima = true;
   const base = id => Math.floor(id / 10000);
@@ -826,17 +789,10 @@ return function createNinjaShima(mod, mods, callbacks) {
       mods.action.off('reaction', reset);
 
     }};
-};
+}
 
-})();
-
-
-const createNinjaTransitions = (() => {
-'use strict';
-
-
-
-return function (mod, mods, callbacks) {
+function createNinjaTransitions(mod, mods, callbacks) {
+  'use strict';
   const settings = mods.settings.info;
   if (settings.ninja_transition_buffer === undefined)
     settings.ninja_transition_buffer = {enabled: true, maxWaitMs: 250, transitions: {}};
@@ -973,9 +929,7 @@ return function (mod, mods, callbacks) {
     mods.action.off('reaction', reset);
 
   }};
-};
-
-})();
+}
 
 
 const createNinjaRetryPolicy = (() => {
@@ -2987,13 +2941,8 @@ return function (mod, mods, send) {
 })();
 
 
-const createLancerSilentBlock = (() => {
-'use strict';
-
-
-
-
-return function createLancerSilentBlock(mod, mods, callbacks) {
+function createLancerSilentBlock(mod, mods, callbacks) {
+  'use strict';
   const settings=mods.settings.info.lancer_silent_block ||= {};
   for(const key of ['enabled','afterBlock','afterShieldCounter'])
     if(settings[key]===undefined)settings[key]=true;
@@ -3156,9 +3105,7 @@ return function createLancerSilentBlock(mod, mods, callbacks) {
   mods.command.add("lancer sb",()=>{settings.enabled=!settings.enabled;if(!settings.enabled)clear();mods.command.message("Lancer Silent Block: "+(settings.enabled?"ON":"OFF"));});
   mods.lancerSilentBlock=api;
   return api;
-};
-
-})();
+}
 
 
 function createEmulationLifetime(mods) {
@@ -3600,7 +3547,7 @@ module.exports = function (mod, mods) {
     handleStartSkill = (packetName3, event5, fake5) => {
       if (sendingRetry) return;
       const requestCheck = mods.priestEntrySkill?.captureRequest(packetName3, event5, fake5) ||
-        mods.cycloneResetMacro?.captureRequest(packetName3, event5, fake5);
+        mods.zerkEntrySkill?.captureRequest(packetName3, event5, fake5);
       if (requestCheck) automatedRequests.set(event5, requestCheck);
       if (deferredPacket && automatedRequests.has(deferredPacket[2]) && !automatedRequests.get(deferredPacket[2])()) {deferredPacket=null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       if (fake5) {
