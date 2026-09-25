@@ -13,13 +13,10 @@ module.exports = function LancerDamageTickLock(mod, mods) {
     timer = null;
     chain = null;
   };
-  const active = (allowNaturalEnd = false) => {
+  const active = () => {
     const action = mods.action.stage;
-    const ended = allowNaturalEnd && !mods.action.inAction &&
-      mods.action.end?.id === action?.id && mods.action.end.type === 0 &&
-      mods.action.serverInAction && mods.action.serverStage?.skill?.id === action?.skill?.id;
     if (destroyed || mods.player.job !== LANCER || mods.player.alive === false ||
-        !(mods.action.inAction || ended) || !protectedSkills.has(base(action?.skill?.id))) return null;
+        !mods.action.inAction || !protectedSkills.has(base(action?.skill?.id))) return null;
     const lastHit = mods.skills._getInfo(action.skill.id)?.lastHit;
     const speed = mods.action.speed?.real;
     if (!(lastHit > 0) || !(speed > 0) || !Number.isFinite(action._time)) return null;
@@ -45,7 +42,7 @@ module.exports = function LancerDamageTickLock(mod, mods) {
   mods.lancerDamageTickLock = coordination;
   const flush = record => {
     timer = null;
-    const state = active(true);
+    const state = active();
     if (chain !== record || !state || state.action.id !== record.actionId) return clear();
     const wait = readyAt(state) - Date.now();
     if (wait > 0) {
@@ -53,19 +50,11 @@ module.exports = function LancerDamageTickLock(mod, mods) {
       return;
     }
     clear();
-    // The local Onslaught can end just before its last hit is safe to chain.
-    // Keep its chain context for this one request while the server action is still active.
-    const ended = !mods.action.inAction;
-    if (ended && mods.action.info) mods.action.info.inAction = true;
-    try {mod.send(...mods.packet.get_all('C_START_SKILL'), record.event);}
-    finally {
-      if (ended && mods.action.info && mods.action.stage?.id === record.actionId)
-        mods.action.info.inAction = false;
-    }
+    mod.send(...mods.packet.get_all('C_START_SKILL'), record.event);
   };
   const schedule = record => {
     mod.clearTimeout(timer);
-    const state = active(true);
+    const state = active();
     if (chain !== record || !state || state.action.id !== record.actionId) return clear();
     timer = mod.setTimeout(() => flush(record), Math.max(1, Math.ceil(readyAt(state) - Date.now())));
   };
@@ -93,13 +82,8 @@ module.exports = function LancerDamageTickLock(mod, mods) {
     if (chain && mods.player.isMe(event.gameId) && event.stage === 0 && event.id !== chain.actionId)
       clear();
   });
-  mod.hook(...mods.packet.get_all('S_ACTION_END'), {order: 110, filter: {fake: null}}, (event, fake) => {
-    if (!chain || !mods.player.isMe(event.gameId)) return;
-    if (fake && event.id === chain.actionId) {
-      if (event.type === 0) schedule(chain);
-      else clear();
-    } else if (!fake && mods.action.serverStage?.skill?.id === mods.action.stage?.skill?.id &&
-        event.id === mods.action.serverStage.id) clear();
+  mod.hook(...mods.packet.get_all('S_ACTION_END'), {order: 110, filter: {fake: null}}, event => {
+    if (chain && mods.player.isMe(event.gameId) && event.id === chain.actionId) clear();
   });
   for (const name of ['S_LOGIN', 'S_LOAD_TOPO', 'S_RETURN_TO_LOBBY'])
     mod.hook(name, 'raw', {filter: {fake: null}}, clear);

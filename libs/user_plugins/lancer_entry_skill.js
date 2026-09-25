@@ -177,6 +177,18 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     const lastHit = (mods.lancerDamageTickLock?.readyAtFor?.(mods.action.stage) || 0)-Date.now();
     return Math.max(0,configured,lastHit);
   };
+  const finishNativeLeap = cast => {
+    if (pending!==cast) return;
+    if (!enabled(cast.mainId) || !mods.action.inAction || localId()!==cast.sourceAction ||
+        Date.now()>cast.expires || remaining(cast.mainId)>0) return cancel();
+    const resolved=resolve(cast.mainId);
+    if (resolved.failed || resolved.skillId!==280101 || !allowed(cast.mainId))
+      return later(()=>finishNativeLeap(cast),5);
+    cast.phase='main';
+    cast.previousServer=mods.action.serverStage?.id;
+    send(cast,cast.mainId);
+    if (pending===cast) later(cancel,ackWindow());
+  };
   const finishEntry = cast => {
     if (pending !== cast) return;
     if (cast.phase !== 'entry' || !enabled(cast.mainId)) return cancel();
@@ -270,6 +282,16 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     const resolved=resolve(id);
     if (resolved.skillId === chainId(id) && remaining(id) === 0) return;
     if (mainBase===28 && remaining(id)>0) return;
+    if (mainBase===28 && mods.action.inAction && [15,25].includes(currentBase()) &&
+        mods.skills._getInfo(mods.action.stage.skill.id)?.chains?.[28]?.includes(1)) {
+      // An early Leap press must wait for this predecessor's native chain window,
+      // rather than cancel Wallop/Lunge and replace it with another Lunge.
+      const cast={mainId:id,mainBase,event:cloneEvent(event),fromHotkey,phase:'native',
+        sourceAction:localId(),expires:Date.now()+ackWindow()};
+      pending=cast;
+      later(()=>finishNativeLeap(cast),1);
+      return false;
+    }
     if (!allowed(id,true)) return;
     const entry=choose(mainBase);
     if (!entry) return;
@@ -315,7 +337,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
     const cast=pending;
     if (!cast || !mods.player.isMe(event.gameId)) return;
     const skillBase=base(event.skill.id);
-    if (cast.phase==='waiting') {
+    if (cast.phase==='waiting' || cast.phase==='native') {
       if (event.id!==cast.sourceAction && skillBase!==2) cancel();
       return;
     }
@@ -356,6 +378,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
       later(()=>run(cast),1);
     }
     if (pending?.phase==='entry' && event.id===pending.entryAction) cancel();
+    if (pending?.phase==='native' && event.id===pending.sourceAction) cancel();
   });
   mod.hook(...mods.packet.get_all('S_CANNOT_START_SKILL'),{order:-90,filter:{fake:null,silenced:null}},event=>{
     if (divine?.phase==='block' && base(event.skill.id)===2) clearDivine();
@@ -395,7 +418,8 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
         leapPressedAt=Date.now();
         const held=deferredLeap;
         mod.clearTimeout(leapTimer);leapTimer=null;deferredLeap=null;
-        if (held && mods.action.inAction && localId()===held.actionId && enabled(280100))
+        if (held && mods.action.inAction && localId()===held.actionId && enabled(280100) &&
+            input(held.packet)!==false)
           mod.send(...mods.packet.get_all('C_START_SKILL'),held.packet);
         return;
       }
