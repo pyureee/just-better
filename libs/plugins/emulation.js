@@ -3547,7 +3547,8 @@ module.exports = function (mod, mods) {
     handleStartSkill = (packetName3, event5, fake5) => {
       if (sendingRetry) return;
       const requestCheck = mods.priestEntrySkill?.captureRequest(packetName3, event5, fake5) ||
-        mods.zerkEntrySkill?.captureRequest(packetName3, event5, fake5);
+        mods.zerkEntrySkill?.captureRequest(packetName3, event5, fake5) ||
+        mods.lancerEntrySkill?.captureRequest?.(packetName3, event5, fake5);
       if (requestCheck) automatedRequests.set(event5, requestCheck);
       if (deferredPacket && automatedRequests.has(deferredPacket[2]) && !automatedRequests.get(deferredPacket[2])()) {deferredPacket=null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       if (fake5) {

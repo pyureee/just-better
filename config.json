@@ -61,6 +61,7 @@
     "spring": "2",
     "onslaught": "5",
     "wallop": "3",
+    "leap": "e",
     "backstep": "6",
     "block": "RButton",
     "divineProtection": "XButton1"
