@@ -16,7 +16,7 @@ module.exports = function (mod, mods) {
   mods.command.add("dash", dash2 => {
     if (!dash2) return mods.command.message("Set the amount of delay your dashes have (default 25ms)");
     dash2 = +dash2;
-    if (isNaN(dash2)) return mods.command.message("Dash delay needs to be a number");
+    if (!Number.isFinite(dash2)) return mods.command.message("Dash delay needs to be a number");
     const dash3 = mods.settings.dash;
     mods.settings.dash = dash2;
     mods.settings.save?.();
@@ -29,9 +29,9 @@ module.exports = function (mod, mods) {
     if (INSTANT_START_PACKETS.includes(mods.last.startSkill._name) && event.stage === 0) {
       const startSkill2 = mods.last.startSkill;
       (startSkill2?.targets?.length || startSkill2?.endpoints?.length) && mod.setTimeout(() => {
-        if (!mods.action.inAction) return;
+        if (!mods.action.inAction || mods.action.stage?.id !== event.id) return;
         mod.send(...mods.packet.get_all("S_INSTANCE_ARROW"), {
-          ...mods.last.startSkill,
+          ...startSkill2,
           ...event,
           actionId: event.id
         });
@@ -44,6 +44,7 @@ module.exports = function (mod, mods) {
           if (event.stage !== 0) return;
           const packetResult = mods.last.packet("C_START_TARGETED_SKILL"),
             target2 = packetResult?.targets?.[0]?.gameId;
+          if (!packetResult?.dest) break;
           mod.setTimeout(() => {
             if (mods.action.stage.id !== event.id) return;
             if (!mods.action.inAction) return;

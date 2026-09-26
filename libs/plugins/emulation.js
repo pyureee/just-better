@@ -3002,12 +3002,7 @@ function createLancerSilentBlock(mod, mods, callbacks) {
     },1);
   };
   const beforeSkill=(name,event,fake)=>{
-    if(internal) {
-
-      if(name==='C_PRESS_SKILL' && event.press && guard(id(event)) && block)
-        generatedPresses.set(event,block);
-      return;
-    }
+    if(internal)return;
     const skill=id(event);
     if(fake && base(skill)===8 && counter && mods.action.stage?.id===counter.localId)return;
     if(name==='C_PRESS_SKILL' && guard(skill)) {
@@ -3091,6 +3086,10 @@ function createLancerSilentBlock(mod, mods, callbacks) {
   const reaction=()=>{held=false;clear();};
   mods.action.on('reaction',reaction);
   const api={
+    captureBlockRequest(event) {
+      if(internal && event.press && guard(id(event)) && block)
+        generatedPresses.set(event,block);
+    },
     isStaleBlockRequest(event) {
       const record=generatedPresses.get(event);
       return !!record && (destroyed || block!==record || !allowed());
@@ -3552,6 +3551,7 @@ module.exports = function (mod, mods) {
       if (requestCheck) automatedRequests.set(event5, requestCheck);
       if (deferredPacket && automatedRequests.has(deferredPacket[2]) && !automatedRequests.get(deferredPacket[2])()) {deferredPacket=null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       if (fake5) {
+        lancerSilentBlock.captureBlockRequest(event5);
         mods.lancerEntrySkill?.captureBlockRequest?.(event5);
         mods.lancerAutoBlock?.captureBlockRequest?.(event5);
       }

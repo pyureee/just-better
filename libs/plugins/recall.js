@@ -3,9 +3,12 @@ module.exports = function (mod, mods) {
   let recallHooks = [],
     recalling = false,
     deferredSkillPacket = null;
+  const clearRecall = () => {recalling=false;deferredSkillPacket=null;};
   const finishRecall = () => {
+      const packet=recalling ? deferredSkillPacket : null;
       recalling = false;
-      deferredSkillPacket && mod.send(...mods.packet.get_all(deferredSkillPacket._name), deferredSkillPacket);
+      deferredSkillPacket=null;
+      packet && mod.send(...mods.packet.get_all(packet._name), packet);
     },
     supportsRecall = () => {
       return mods.player.job === 9 && mods.skills.isSupported(210300);
@@ -25,7 +28,7 @@ module.exports = function (mod, mods) {
     handleRecallEnd = event2 => {
       if (!mods.player.isMe(event2.gameId)) return;
       if (!isRecallSkill(event2.skill.id)) return;
-      if (!mods.utils.isEnabled()) return;
+      if (!mods.utils.isEnabled()) {clearRecall();return;}
       event2.skill = 210300;
       finishRecall();
       return true;
@@ -48,7 +51,7 @@ module.exports = function (mod, mods) {
     handleDeath = event3 => {
       if (!mods.player.isMe(event3.gameId)) return;
       if (event3.alive) return;
-      recalling = false;
+      clearRecall();
     },
     registerRecallHooks = () => {
       recallHooks.push(mod.hook(...mods.packet.get_all("S_CREATURE_LIFE"), hooks.READ_DESTINATION_ALL, handleDeath));
@@ -62,10 +65,13 @@ module.exports = function (mod, mods) {
       recallHooks.push(mod.hook("C_PRESS_SKILL", "event", hooks.MODIFY_INTERNAL_REAL, blockDuringRecall));
     };
   this.loaded = () => {
-    if (supportsRecall()) registerRecallHooks();else {
-      for (const hook2 of recallHooks) mod.unhook(hook2);
-      recallHooks = [];
-    }
+    clearRecall();
+    for (const hook of recallHooks) mod.unhook(hook);
+    recallHooks=[];
+    if (supportsRecall()) registerRecallHooks();
   };
   mod.hook("S_LOGIN", "event", hooks.READ_DESTINATION_ALL, this.loaded);
+  for(const name of ['S_LOAD_TOPO','S_RETURN_TO_LOBBY'])
+    mod.hook(name,'raw',{filter:{fake:null}},clearRecall);
+  this.destructor=clearRecall;
 };

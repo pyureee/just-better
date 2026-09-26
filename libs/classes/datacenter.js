@@ -132,7 +132,7 @@ class Datacenter {
       state = {
         211: "stunned"
       };
-    for (const entriesKey in Object.values(this.info.abnormality)) {
+    for (const entriesKey of Object.values(this.info.abnormality)) {
       for (const abnormalityEffectEntry of entriesKey.AbnormalityEffect || []) {
         switch (abnormalityEffectEntry.type) {
           case 211:

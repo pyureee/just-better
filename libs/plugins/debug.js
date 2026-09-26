@@ -190,13 +190,14 @@ module.exports = function (mod, mods) {
       }
     }],
     formatDebugValue = valueToFormat => {
+      if (valueToFormat === null) return null;
       if (valueToFormat.x !== undefined && valueToFormat.y !== undefined && valueToFormat.z !== undefined) {
         valueToFormat.x = Math.round(valueToFormat.x);
         valueToFormat.y = Math.round(valueToFormat.y);
         valueToFormat.z = Math.round(valueToFormat.z);
         return valueToFormat.x + ":" + valueToFormat.y + ":" + valueToFormat.z;
       }
-      for (let valueToFormatKey in valueToFormat) {
+      for (const valueToFormatKey of Object.keys(valueToFormat)) {
         const valueToFormatEntry = valueToFormat[valueToFormatKey];
         switch (typeof valueToFormatEntry) {
           case "number":

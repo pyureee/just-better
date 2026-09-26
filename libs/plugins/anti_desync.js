@@ -6,7 +6,7 @@ module.exports = function (mod, mods) {
   let desyncTolerance = -1.5;
   mods.command.add("desync", toleranceInput => {
     toleranceInput = +toleranceInput;
-    if (isNaN(toleranceInput)) return mods.command.message("Need to provide a valid value.");
+    if (!Number.isFinite(toleranceInput)) return mods.command.message("Need to provide a valid value.");
     mods.command.message("Value set to " + toleranceInput);
     desyncTolerance = toleranceInput * -1;
   });

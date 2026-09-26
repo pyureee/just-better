@@ -257,7 +257,7 @@ module.exports = function LancerEntryPrecaster(mod, mods) {
   const input = (event, fromHotkey = false) => {
     if (!fromHotkey) {rememberHeading(event);if (Number.isFinite(event.w)) skillHeading=event.w;}
     const id = event.skill.id, mainBase = base(id);
-    if (id===280100 && monitor && mods.action.inAction && currentBase()===15 &&
+    if (id===280100 && enabled(id) && monitor && mods.action.inAction && currentBase()===15 &&
         Date.now()-leapPressedAt>200) {
       // A Lunge continuation is only valid when the player actually pressed Leap.
       // The key monitor can report the press just after the game packet.

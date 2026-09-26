@@ -52,7 +52,7 @@ class Settings {
   };
   delay = delay2 => {
     delay2 = +delay2;
-    if (isNaN(delay2) || delay2 < 0) return this.mods.command.message("The artificial delay needs to be a number >= 0");
+    if (!Number.isFinite(delay2) || delay2 < 0) return this.mods.command.message("The artificial delay needs to be a number >= 0");
     this.info.delay = delay2;
     this.save();
     this.mods.command.message("Set artificial delay to", delay2);

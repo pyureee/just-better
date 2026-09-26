@@ -110,7 +110,7 @@ module.exports = function (mod, mods) {
     if (!mods.utils.isEnabled(event.skill.id)) return;
     const skillInfo = mods.utils.getSkillInfo(event.skill.id),
       skills2 = mods.settings.info.lancer_auto_block.skills,
-      skills2Entry = skills2[skillInfo.skill + "-" + skillInfo.sub] || skills2[skillInfo.skill];
+      skills2Entry = skills2[skillInfo.skill + "-" + skillInfo.sub] ?? skills2[skillInfo.skill];
     if (!skills2Entry) return;
     if (skills2Entry?.needsCooldown) {
       const everyResult = skills2Entry.needsCooldown.every(skillBase => {
@@ -137,7 +137,7 @@ module.exports = function (mod, mods) {
         if (!mods.utils.isEnabled(event.skill.id) || !mods.action.inAction) return;
         if (event.id !== mods.action.stage?.id) return;
         const currentSkills = mods.settings.info.lancer_auto_block.skills;
-        if (!(currentSkills[skillInfo.skill + "-" + skillInfo.sub] || currentSkills[skillInfo.skill])) return;
+        if (!(currentSkills[skillInfo.skill + "-" + skillInfo.sub] ?? currentSkills[skillInfo.skill])) return;
         const skillPacket = {
           skill: 20200,
           press: true,

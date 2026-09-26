@@ -44,14 +44,15 @@ module.exports = function (mod, mods) {
   mod.hook(...mods.packet.get_all("C_HIT_USER_PROJECTILE"), hooks.MODIFY_REAL, event4 => {
     const match = pendingProjectiles.find(pendingProjectileItem => pendingProjectileItem.faked === event4.id);
     if (!match) return;
-    event4.end && pendingProjectiles.splice(pendingProjectiles.indexOf(match), 1);
+    if(event4.end)match.ended=true;
     if (match.real) {
+      if(match.ended)pendingProjectiles.splice(pendingProjectiles.indexOf(match), 1);
       event4.id = match.real;
       return true;
     }
     activeProjectiles.push({
       event: event4,
-      skill: match.skill
+      owner: match
     });
     return false;
   });
@@ -61,9 +62,12 @@ module.exports = function (mod, mods) {
     if (!mods.utils.isEnabled(event5.skill.id)) return;
     const skillInfo2 = mods.utils.getSkillInfo(event5.skill.id);
     if (!PROJECTILE_SKILL_BASES.includes(skillInfo2.skill)) return;
-    const matches = activeProjectiles.filter(activeProjectileItem => activeProjectileItem.skill.skill === skillInfo2.skill);
+    const match2 = pendingProjectiles.find(item => !item.real && item.skill.skill === skillInfo2.skill);
+    if (!match2) return;
+    match2.real=event5.id;
+    const matches = activeProjectiles.filter(item => item.owner===match2);
     if (matches.length) {
-      activeProjectiles = activeProjectiles.filter(activeProjectileItem2 => activeProjectileItem2.skill.skill !== skillInfo2.skill);
+      activeProjectiles = activeProjectiles.filter(item => item.owner!==match2);
       for (const {
         event: event6
       } of matches) {
@@ -73,8 +77,13 @@ module.exports = function (mod, mods) {
         });
       }
     }
-    const match2 = pendingProjectiles.find(pendingProjectileItem2 => pendingProjectileItem2.skill.skill === skillInfo2.skill);
-    match2 && (match2.real = event5.id);
+    if(match2.ended)pendingProjectiles.splice(pendingProjectiles.indexOf(match2),1);
     return false;
+  });
+  const clear=()=>{pendingProjectiles.length=0;activeProjectiles=[];};
+  for(const name of ['S_LOGIN','S_LOAD_TOPO','S_RETURN_TO_LOBBY'])
+    mod.hook(name,'raw',{filter:{fake:null}},clear);
+  mod.hook(...mods.packet.get_all('S_CREATURE_LIFE'),hooks.READ_REAL,event=>{
+    if(mods.player.isMe(event.gameId)&&!event.alive)clear();
   });
 };

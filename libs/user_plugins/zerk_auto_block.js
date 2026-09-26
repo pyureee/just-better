@@ -47,7 +47,7 @@ module.exports = function (mod, mods) {
     if (!mods.utils.isEnabled(event2.skill.id)) return;
     const skillInfo = mods.utils.getSkillInfo(event2.skill.id),
       skills2 = mods.settings.info.zerk_auto_block.skills;
-    if (!(skills2[skillInfo.skill] || skills2[skillInfo.skill + "-" + skillInfo.sub])) return;
+    if (!(skills2[skillInfo.skill + "-" + skillInfo.sub] ?? skills2[skillInfo.skill])) return;
     const skillData = mods.skills._getInfo(event2.skill.id),
       {
         rearStartTime = -1
@@ -66,7 +66,7 @@ module.exports = function (mod, mods) {
         cancelAutoBlock();
         if (mods.player.job !== classes.BERSERKER || mods.player.alive === false) return;
         if (!mods.settings.info.zerk_auto_block.enabled || !mods.utils.isEnabled(event2.skill.id)) return;
-        if (!(skills2[skillInfo.skill] || skills2[skillInfo.skill + "-" + skillInfo.sub])) return;
+        if (!(skills2[skillInfo.skill + "-" + skillInfo.sub] ?? skills2[skillInfo.skill])) return;
         if (!mods.action.inAction) return;
         if (mods.effects.getAbnormality(401701)) return;
         if (event2.id !== mods.action.stage?.id) return;
