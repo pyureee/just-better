@@ -3087,8 +3087,10 @@ function createLancerSilentBlock(mod, mods, callbacks) {
   mods.action.on('reaction',reaction);
   const api={
     captureBlockRequest(event) {
-      if(internal && event.press && guard(id(event)) && block)
+      if(internal && event.press && guard(id(event)) && block) {
         generatedPresses.set(event,block);
+        return () => !api.isStaleBlockRequest(event);
+      }
     },
     isStaleBlockRequest(event) {
       const record=generatedPresses.get(event);
@@ -3127,6 +3129,9 @@ function createEmulationLifetime(mods) {
 module.exports = function (mod, mods) {
   const lifetime=createEmulationLifetime(mods);
   const automatedRequests = new WeakMap();
+  const requestGuards = new WeakMap();
+  const validRequest = (event, retry = false) => (!automatedRequests.has(event) || automatedRequests.get(event)()) &&
+    (!requestGuards.has(event) || requestGuards.get(event)(retry));
   let expectedSkillId = null,
     expectedEndType = null,
     castQueue = {
@@ -3397,10 +3402,7 @@ module.exports = function (mod, mods) {
   let incrementNextSkillId = false;
   const executeCast = async (packetName2, event4, initialSkillData, initialCastResult, boomerangRecovery = false) => {
       if(lifetime.closed)return;
-      if (automatedRequests.has(event4) && !automatedRequests.get(event4)()) return;
-      if (mods.lancerEntrySkill?.isStaleBlockRequest?.(event4) ||
-          lancerSilentBlock.isStaleBlockRequest(event4) ||
-          mods.lancerAutoBlock?.isStaleBlockRequest?.(event4)) return;
+      if (!validRequest(event4)) return;
       const flattenAttempt = flattenChain.get(event4);
       if (lifetime.closed || !flattenChain.valid(flattenAttempt)) return;
       if (deferredPacket && automatedRequests.has(deferredPacket[2]) && !automatedRequests.get(deferredPacket[2])()) {deferredPacket = null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
@@ -3437,10 +3439,7 @@ module.exports = function (mod, mods) {
         jitterPlusDelay > 0 && (await mods.utils.sleep(jitterPlusDelay));
       }
       if (lifetime.closed || !flattenChain.valid(flattenAttempt)) return;
-      if (automatedRequests.has(event4) && !automatedRequests.get(event4)()) return;
-      if (mods.lancerEntrySkill?.isStaleBlockRequest?.(event4) ||
-          lancerSilentBlock.isStaleBlockRequest(event4) ||
-          mods.lancerAutoBlock?.isStaleBlockRequest?.(event4)) return;
+      if (!validRequest(event4)) return;
       const castResult = mods.skills.canCast(skillData, {
         byGrant: byGrant2,
         press: press2,
@@ -3513,7 +3512,7 @@ module.exports = function (mod, mods) {
         timestamp = Date.now();
       for (let retryIndex = 0; retryIndex < retryCount; retryIndex++) {
         await mods.utils.sleep(retryDelayMs);
-        if(lifetime.closed)return;
+        if(lifetime.closed || !validRequest(event4, true))return;
         if (mods?.action?.serverStage?.id !== id2) {
           const timeMinusTimestamp = mods.action.serverStage._time - timestamp;
           if (timeMinusTimestamp >= mods.ping.ping) {
@@ -3551,10 +3550,16 @@ module.exports = function (mod, mods) {
       if (requestCheck) automatedRequests.set(event5, requestCheck);
       if (deferredPacket && automatedRequests.has(deferredPacket[2]) && !automatedRequests.get(deferredPacket[2])()) {deferredPacket=null;skipSkillTimeAdjustment=false;grantSkillDeadline=0;}
       if (fake5) {
-        lancerSilentBlock.captureBlockRequest(event5);
-        mods.lancerEntrySkill?.captureBlockRequest?.(event5);
-        mods.lancerAutoBlock?.captureBlockRequest?.(event5);
+        // Retain the issuing instance's checks across plugin reloads and async waits.
+        // These guards preserve normal retries, unlike one-shot automated requests.
+        const guards = [lancerSilentBlock.captureBlockRequest(event5),
+          mods.lancerEntrySkill?.captureBlockRequest?.(event5),
+          mods.lancerAutoBlock?.captureBlockRequest?.(event5),
+          mods.lancerEntrySkill?.captureDeferredRequest?.(packetName3, event5),
+          mods.lancerDamageTickLock?.captureDeferredRequest?.(packetName3, event5)].filter(Boolean);
+        if (guards.length) requestGuards.set(event5, retry => guards.every(check => check(retry)));
       }
+      if (!validRequest(event5)) return false;
       ninjaTransitions.observe(packetName3, event5);
       if (ninjaShima.beforeInput(packetName3, event5)) return false;
       if (boomerangGuard.handleInput(packetName3, event5)) return false;

@@ -7,8 +7,9 @@ const base = id => Math.floor((id || 0) / 10000);
 const copy = value => value?.clone ? value.clone() : value && typeof value === 'object' ? {...value} : value;
 
 module.exports = function LancerDamageTickLock(mod, mods) {
-  let chain = null, timer = null, destroyed = false;
+  let chain = null, timer = null, destroyed = false, emitting = null, generation = 0;
   const clear = () => {
+    generation++;
     mod.clearTimeout(timer);
     timer = null;
     chain = null;
@@ -16,7 +17,8 @@ module.exports = function LancerDamageTickLock(mod, mods) {
   const active = () => {
     const action = mods.action.stage;
     if (destroyed || mods.player.job !== LANCER || mods.player.alive === false ||
-        !mods.action.inAction || !protectedSkills.has(base(action?.skill?.id))) return null;
+        !mods.action.inAction || !protectedSkills.has(base(action?.skill?.id)) ||
+        !mods.utils.isEnabled(action.skill.id)) return null;
     const lastHit = mods.skills._getInfo(action.skill.id)?.lastHit;
     const speed = mods.action.speed?.real;
     if (!(lastHit > 0) || !(speed > 0) || !Number.isFinite(action._time)) return null;
@@ -34,6 +36,13 @@ module.exports = function LancerDamageTickLock(mod, mods) {
     return time + 5;
   };
   const coordination = {
+    cancelQueued: clear,
+    captureDeferredRequest(name, event) {
+      if (!emitting || name !== 'C_START_SKILL' || event.skill.id !== emitting.event.skill.id) return;
+      const record = emitting, version = generation;
+      return retry => !destroyed && generation === version && mods.utils.isEnabled(event.skill.id) &&
+        (retry || mods.action.inAction && mods.action.stage?.id === record.actionId);
+    },
     readyAtFor(event) {
       const state = active();
       return state && state.action.id === event.id ? readyAt(state) : 0;
@@ -50,7 +59,9 @@ module.exports = function LancerDamageTickLock(mod, mods) {
       return;
     }
     clear();
-    mod.send(...mods.packet.get_all('C_START_SKILL'), record.event);
+    emitting = record;
+    try { mod.send(...mods.packet.get_all('C_START_SKILL'), record.event); }
+    finally { emitting = null; }
   };
   const schedule = record => {
     mod.clearTimeout(timer);
@@ -62,10 +73,11 @@ module.exports = function LancerDamageTickLock(mod, mods) {
   mod.hook(...mods.packet.get_all('C_START_SKILL'), {order: -31, filter: {fake: false}}, event => {
     clear();
     const state = active();
-    if (!state || !chainedSkills.has(base(event.skill?.id)) || Date.now() >= readyAt(state)) return;
+    if (!state || !mods.utils.isEnabled(event.skill.id) || !chainedSkills.has(base(event.skill?.id)) || Date.now() >= readyAt(state)) return;
     const resolved = mods.skills.getNewSkillData?.(event.skill.id,
       {byGrant: event.continue, press: event.press});
     if (resolved?.failed || resolved?.skillId === event.skill.id || !resolved?.skillId) return;
+    mods.lancerEntrySkill?.cancelQueued?.();
     chain = {event: {...event, skill: copy(event.skill), loc: copy(event.loc),
       dest: copy(event.dest)}, actionId: state.action.id};
     schedule(chain);

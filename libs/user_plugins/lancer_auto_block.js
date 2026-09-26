@@ -40,7 +40,7 @@ module.exports = function (mod, mods) {
   const timers = new Set();
   const pendingBlockActions = new Set();
   const requests = new WeakMap();
-  let tap = null, issuingTap = null;
+  let tap = null, issuingTap = null, destroyed = false;
   const sendTap = (record, press) => {
     issuingTap=record;
     try {mod.send(...mods.packet.get_all('C_PRESS_SKILL'), {...record.packet,press});}
@@ -48,13 +48,17 @@ module.exports = function (mod, mods) {
   };
   const coordination = {
     captureBlockRequest(event) {
-      if(issuingTap && Math.floor(event.skill.id/10000)===2) requests.set(event,issuingTap);
+      if(issuingTap && Math.floor(event.skill.id/10000)===2) {
+        requests.set(event,issuingTap);
+        return ()=>!destroyed && !coordination.isStaleBlockRequest(event);
+      }
     },
     isStaleBlockRequest(event) {
       const record=requests.get(event);
       if(!record)return false;
       if(record.cancelled || mods.player.alive===false || mods.player.job!==classes.LANCER)return true;
-      return event.press ? tap!==record || !mods.settings.info.lancer_auto_block.enabled :
+      return event.press ? tap!==record || !mods.settings.info.lancer_auto_block.enabled ||
+        !mods.action.inAction || mods.action.stage?.id!==record.sourceId :
         mods.action.stage?.id!==record.actionId || !mods.action.inAction;
     },
     isBlockPendingFor(actionId) {
@@ -80,6 +84,10 @@ module.exports = function (mod, mods) {
     timers.clear();
     pendingBlockActions.clear();
     if(tap && tap.actionId===undefined){tap.cancelled=true;tap=null;}
+  };
+  const resetBlocks = () => {
+    cancelBlocks();
+    if (tap) { tap.cancelled = true; tap = null; }
   };
   const scheduleAutoBlock = event => {
     if (!mods.player.isMe(event.gameId)) return;
@@ -129,6 +137,7 @@ module.exports = function (mod, mods) {
     pendingBlockActions.add(event.id);
     later(() => {
       const sendWhenSafe = () => {
+        if (!pendingBlockActions.has(event.id)) return;
         const readyAt = mods.lancerDamageTickLock?.readyAtFor?.(event) || 0;
         if (readyAt > Date.now()) return later(sendWhenSafe, readyAt - Date.now());
         pendingBlockActions.delete(event.id);
@@ -161,7 +170,7 @@ module.exports = function (mod, mods) {
       if(tap && (tap.actionId===undefined || manualHold)){tap.cancelled=true;tap=null;}
     });
   this.loaded = () => {
-    cancelBlocks();
+    resetBlocks();
     clearLancerHooks();
     if (mods.player.job === classes.LANCER)
       lancerHooks.push(mod.hook(...mods.packet.get_all("S_ACTION_STAGE"), HOOKS.READ_DESTINATION_FAKE, scheduleAutoBlock));
@@ -169,12 +178,12 @@ module.exports = function (mod, mods) {
   mod.hook("S_LOGIN", "event", HOOKS.READ_DESTINATION_ALL, this.loaded);
   this.loaded();
   for (const name of ["S_LOAD_TOPO", "S_RETURN_TO_LOBBY"])
-    mod.hook(name, "raw", { filter: { fake: null } }, cancelBlocks);
+    mod.hook(name, "raw", { filter: { fake: null } }, resetBlocks);
   mod.hook(...mods.packet.get_all("S_ACTION_END"), HOOKS.READ_DESTINATION_ALL, event => {
     if (mods.player.isMe(event.gameId) && pendingBlockActions.has(event.id)) cancelBlocks();
   });
   mod.hook(...mods.packet.get_all("S_CREATURE_LIFE"), HOOKS.READ_DESTINATION_ALL, event => {
-    if (mods.player.isMe(event.gameId) && !event.alive) cancelBlocks();
+    if (mods.player.isMe(event.gameId) && !event.alive) resetBlocks();
   });
   mods.command.add("lancerblock", skillKey => {
     if (!skillKey) {
@@ -193,8 +202,9 @@ module.exports = function (mod, mods) {
     mods.command.message("Auto blocking for " + skillKey + " has been turned " + (mods.settings.info.lancer_auto_block.skills[skillKey] ? "on" : "off"));
   });
   this.destructor = () => {
+    destroyed = true;
     clearLancerHooks();
-    cancelBlocks();
+    resetBlocks();
     if (mods.lancerAutoBlock === coordination) delete mods.lancerAutoBlock;
     mods.command.remove("lancerblock");
   };
